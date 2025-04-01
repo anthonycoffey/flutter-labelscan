@@ -25,8 +25,8 @@ class _HomeScreenState extends State<HomeScreen> {
     // Navigation happens automatically via AuthWrapper stream
   }
 
-  List<ScannedItem> _scannedItems = []; // State variable for the table
-  double _taxRate = 0.0825; // Example: 8.25% tax rate (Austin, TX) - make this configurable later
+  final List<ScannedItem> _scannedItems = []; // State variable for the table
+  final double _taxRate = 0.0825; // Example: 8.25% tax rate (Austin, TX) - make this configurable later
   bool _isProcessing = false; // To show loading indicator
 
   void _scanLabel() async {
@@ -176,6 +176,47 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  // Calculation methods
+  int get _subtotalCents => _scannedItems.fold(0, (sum, item) => sum + item.priceInCents);
+  int get _taxCents => (_subtotalCents * _taxRate).round();
+  int get _totalCents => _subtotalCents + _taxCents;
+
+  // Formatting helper
+  String _formatCents(int cents) {
+    final currencyFormat = NumberFormat.currency(locale: 'en_US', symbol: '\$');
+    return currencyFormat.format(cents / 100.0);
+  }
+
+  void _showClearConfirmationDialog() {
+      if (_scannedItems.isEmpty) return; // Don't show if already empty
+
+      showDialog<void>(
+          context: context,
+          builder: (BuildContext context) {
+              return AlertDialog(
+                  title: const Text('Start Over?'),
+                  content: const Text('Are you sure you want to clear all scanned items?'),
+                  actions: <Widget>[
+                      TextButton(
+                          child: const Text('Cancel'),
+                          onPressed: () => Navigator.of(context).pop(),
+                      ),
+                      TextButton(
+                          style: TextButton.styleFrom(foregroundColor: Colors.red),
+                          child: const Text('Clear All'),
+                          onPressed: () {
+                              setState(() {
+                                  _scannedItems.clear();
+                              });
+                              Navigator.of(context).pop();
+                          },
+                      ),
+                  ],
+              );
+          },
+      );
+  }
+
 @override
 Widget build(BuildContext context) {
    // Calculate totals
@@ -223,7 +264,7 @@ Widget build(BuildContext context) {
                                          DataCell(Text(item.description)),
                                          DataCell(Text(item.priceFormatted)),
                                       ],
-                                   )).toList(),
+                                   )),
 
                                    // --- Totals Rows ---
                                    // Subtotal Row (using DataRow for alignment)

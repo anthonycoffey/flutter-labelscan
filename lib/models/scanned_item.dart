@@ -1,3 +1,4 @@
+import 'package:intl/intl.dart'; // For currency formatting
 class ScannedItem {
   final String description;
   final int priceInCents; // Store price as cents
