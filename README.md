@@ -71,7 +71,7 @@ The application follows a client-server architecture:
 
 ## 📷 Screenshots
 
-*[Add screenshots of your application here]*
+*Coming Soon!*
 
 ## 📜 License
 
