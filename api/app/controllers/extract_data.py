@@ -63,15 +63,9 @@ def extract_data():
       role="user",
       parts=[
         types.Part.from_text(
-        text="""take this cloud vision api response and extract structured data from it.. infer schema and return JSON object
-        consider boundingPoly data for each entity detected in the image
-        * EC DATE and ECL_LEVEL may be blank, skip blank values
-        * LOT CODE may be grouped near other values, but should be extracted as a separate entity
-        * do not return cloud vision API response data in the final JSON object
-        * do not prefix data/time keys with EC unless specified
-        * ALWAYS return lowercase keys (snake case)
-        * never return identical key/value pairs, the key should always be different from the value
-        * always return an object with key/value pairs, never an array
+        text=""" 1. take this cloud vision api response and extract price data from it
+                 2. return JSON object with price data in the following schema:
+                 {"description":"[infer product desctription here]","amount":"[extracted price here]"}
         """,
         ),
         types.Part.from_text(
