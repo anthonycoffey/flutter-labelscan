@@ -5,6 +5,7 @@ import 'package:flutter_labelscan/screens/camera_screen.dart';
 import 'dart:convert'; // For jsonDecode
 import 'dart:io'; // For File
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart'; // For MediaType
 import 'package:intl/intl.dart'; // For currency formatting
 import 'package:flutter_labelscan/models/scanned_item.dart'; // Create this model later
 
@@ -41,19 +42,20 @@ class _HomeScreenState extends State<HomeScreen> {
           return;
         }
 
-        // Show the camera screen and wait for a result (image path)
-        final imagePath = await Navigator.push<String>(
+        // Show the camera screen and wait for a result (XFile object)
+        final imageFile = await Navigator.push<XFile?>( // Expect XFile?
           context,
           MaterialPageRoute(
               builder: (context) => CameraScreen(cameras: cameras),
           ),
         );
 
-        if (imagePath != null && imagePath.isNotEmpty) {
-          print("Image captured: $imagePath");
-          await _uploadAndProcessImage(imagePath);
+        if (imageFile != null) { // Check if XFile is not null
+          print("Image captured: ${imageFile.path}");
+          print("Image MIME type: ${imageFile.mimeType}"); // Log mime type
+          await _uploadAndProcessImage(imageFile); // Pass the XFile
         } else {
-          print("No image path received");
+          print("No image file received");
         }
     } catch (e) {
         print("Error opening camera: $e");
@@ -63,21 +65,37 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _uploadAndProcessImage(String imagePath) async {
+  // Updated to accept XFile
+  Future<void> _uploadAndProcessImage(XFile imageXFile) async {
     setState(() { _isProcessing = true; });
 
     const String apiUrl = "https://flask-api-87033406861.us-central1.run.app/api/extract-data";
-    File imageFile = File(imagePath);
+    File imageFile = File(imageXFile.path); // Get path from XFile
+
+    // Determine content type
+    MediaType? contentType;
+    if (imageXFile.mimeType != null) {
+      try {
+        contentType = MediaType.parse(imageXFile.mimeType!);
+      } catch (e) {
+        print("Error parsing mimeType: ${imageXFile.mimeType}. Sending without explicit content type. Error: $e");
+        // Optionally fall back to guessing based on extension or send without
+      }
+    } else {
+       print("XFile mimeType is null. Sending without explicit content type.");
+       // Could add logic here to guess based on file extension if needed
+    }
+
 
     try {
         var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
         request.files.add(await http.MultipartFile.fromPath(
             'file', // This 'file' key must match what your Flask backend expects
             imageFile.path,
-            // contentType: MediaType('image', 'jpeg'), // Optional: specify content type if needed
+            contentType: contentType, // Set the content type explicitly
         ));
 
-        print("Sending request to API...");
+        print("Sending request to API with content type: ${contentType?.toString() ?? 'Not specified'}");
         var streamedResponse = await request.send();
         var response = await http.Response.fromStream(streamedResponse);
 
@@ -87,7 +105,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
         if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
-            // TODO: Show confirmation modal
             await _showConfirmationDialog(data['description'], data['amount']);
         } else {
             // Handle API errors (non-200 status)

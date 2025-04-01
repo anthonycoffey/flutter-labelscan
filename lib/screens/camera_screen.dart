@@ -47,8 +47,8 @@ class CameraScreenState extends State<CameraScreen> {
 
          if (!mounted) return; // Check if widget is still mounted
 
-         // If picture was taken, return the path to the previous screen
-         Navigator.pop(context, image.path);
+         // If picture was taken, return the XFile object to the previous screen
+         Navigator.pop(context, image);
 
      } catch (e) {
         print("Error taking picture: $e");
