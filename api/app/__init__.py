@@ -5,7 +5,7 @@ from app.services import initialize_firebase
 
 def create_app():
   app = Flask(__name__)
-  
+  print('flask app created', app)
   app.config.from_object(Config)
   
   initialize_firebase(app)
