@@ -92,8 +92,14 @@ class _HomeScreenState extends State<HomeScreen> {
         } else {
             // Handle API errors (non-200 status)
             print("API Error: ${response.statusCode} - ${response.body}");
+            // Include response body in SnackBar for better debugging
+            String errorDetail = response.body.isNotEmpty ? response.body : response.reasonPhrase ?? 'Unknown error';
+            // Limit length to avoid overly long SnackBars
+            if (errorDetail.length > 100) {
+              errorDetail = '${errorDetail.substring(0, 97)}...';
+            }
             ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Error processing image: ${response.reasonPhrase}'))
+                SnackBar(content: Text('Error processing image: $errorDetail'))
             );
         }
     } catch (e) {
