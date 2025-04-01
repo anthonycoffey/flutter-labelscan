@@ -66,7 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _uploadAndProcessImage(String imagePath) async {
     setState(() { _isProcessing = true; });
 
-    const String apiUrl = "https://flask-api-119183926161.us-central1.run.app/extract-data"; // Your backend URL
+    const String apiUrl = "https://flask-api-87033406861.us-central1.run.app/extract-data"; // Your backend URL
     File imageFile = File(imagePath);
 
     try {
