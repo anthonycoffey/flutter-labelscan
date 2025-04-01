@@ -154,49 +154,51 @@ class _AuthScreenState extends State<AuthScreen> {
                       textAlign: TextAlign.center,
                     ),
                   ),
-                TextFormField(
-                  controller: _emailController,
-                  key: const ValueKey('email'),
-                  validator: (value) {
-                    if (value == null || value.isEmpty || !value.contains('@')) {
-                      return 'Please enter a valid email address.';
-                    }
-                    return null;
-                  },
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email Address',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _passwordController,
-                  key: const ValueKey('password'),
-                  validator: (value) {
-                    if (value == null || value.isEmpty || value.length < 7) {
-                      return 'Password must be at least 7 characters long.';
-                    }
-                    return null;
-                  },
-                  obscureText: true, // Hide password
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 20),
+
+                // Show spinner OR the form fields and buttons
                 if (_isLoading)
-                  const CircularProgressIndicator()
-                else
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20.0), // Add padding around spinner
+                    child: CircularProgressIndicator(),
+                  )
+                else ...[ // Show form fields and all buttons only when not loading
+                  TextFormField(
+                    controller: _emailController,
+                    key: const ValueKey('email'),
+                    validator: (value) {
+                      if (value == null || value.isEmpty || !value.contains('@')) {
+                        return 'Please enter a valid email address.';
+                      }
+                      return null;
+                    },
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'Email Address',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _passwordController,
+                    key: const ValueKey('password'),
+                    validator: (value) {
+                      if (value == null || value.isEmpty || value.length < 7) {
+                        return 'Password must be at least 7 characters long.';
+                      }
+                      return null;
+                    },
+                    obscureText: true, // Hide password
+                    decoration: const InputDecoration(
+                      labelText: 'Password',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: _submitAuthForm,
                     child: Text(_isLogin ? 'Login' : 'Sign Up'),
                   ),
-                const SizedBox(height: 10), // Spacing
-                if (_isLoading)
-                  const SizedBox.shrink() // Don't show Google button while loading email/pass
-                else
+                  const SizedBox(height: 10), // Spacing
                   ElevatedButton.icon(
                     icon: const Icon(Icons.login), // Replace with a Google icon if desired
                     label: const Text('Sign in with Google'),
@@ -206,7 +208,6 @@ class _AuthScreenState extends State<AuthScreen> {
                       foregroundColor: Colors.black,
                     ),
                   ),
-                if (!_isLoading)
                   TextButton(
                     onPressed: () {
                       setState(() {
@@ -218,6 +219,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         ? 'Create new account'
                         : 'I already have an account'),
                   ),
+                ],
               ],
             ),
           ),

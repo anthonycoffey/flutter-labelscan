@@ -92,7 +92,6 @@ class _HomeScreenState extends State<HomeScreen> {
         request.files.add(await http.MultipartFile.fromPath(
             'file', // This 'file' key must match what your Flask backend expects
             imageFile.path,
-            contentType: contentType, // Set the content type explicitly
         ));
 
         print("Sending request to API with content type: ${contentType?.toString() ?? 'Not specified'}");
