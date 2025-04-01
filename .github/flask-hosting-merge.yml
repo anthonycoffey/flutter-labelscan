@@ -1,0 +1,42 @@
+name: Deploy Flask API Cloud Function
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'api/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+
+
+      - name: Create .env file
+        run: |
+          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> ./api/.env
+          echo "GCLOUD_PROJECT=${{ secrets.GCLOUD_PROJECT }}" >> ./api/.env
+
+      - name: Deploy to Cloud Run
+        run: |
+          # Deploy directly from source code
+          gcloud run deploy flask-api \
+            --source ./api \
+            --platform managed \
+            --region us-central1 \
+            --allow-unauthenticated
