@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart'; // Added import
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -65,6 +66,63 @@ class _AuthScreenState extends State<AuthScreen> {
       }
     }
   }
+
+  // --- Google Sign-In Logic ---
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // Trigger the authentication flow
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+
+      // Obtain the auth details from the request
+      if (googleUser == null) {
+        // User cancelled the sign-in
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      // Create a new credential
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // Once signed in, return the UserCredential
+      await FirebaseAuth.instance.signInWithCredential(credential);
+      // Navigation happens automatically via AuthWrapper stream
+
+    } on FirebaseAuthException catch (e) {
+       if (mounted) {
+         setState(() {
+           _errorMessage = e.message ?? 'Google Sign-In failed.';
+         });
+       }
+      // print('Google Sign-In FirebaseAuthException: ${e.code} - ${e.message}');
+    } catch (e) {
+       if (mounted) {
+         setState(() {
+           _errorMessage = 'An unexpected error occurred during Google Sign-In.';
+         });
+       }
+      // print('Google Sign-In Generic Exception: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+  // --- End Google Sign-In Logic ---
+
 
   @override
   void dispose() {
@@ -134,6 +192,19 @@ class _AuthScreenState extends State<AuthScreen> {
                   ElevatedButton(
                     onPressed: _submitAuthForm,
                     child: Text(_isLogin ? 'Login' : 'Sign Up'),
+                  ),
+                const SizedBox(height: 10), // Spacing
+                if (_isLoading)
+                  const SizedBox.shrink() // Don't show Google button while loading email/pass
+                else
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.login), // Replace with a Google icon if desired
+                    label: const Text('Sign in with Google'),
+                    onPressed: _signInWithGoogle,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white, // Google-like style
+                      foregroundColor: Colors.black,
+                    ),
                   ),
                 if (!_isLoading)
                   TextButton(
