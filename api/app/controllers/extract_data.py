@@ -22,8 +22,9 @@ def extract_data():
   if file.filename == "":
     return jsonify({"status": "error", "message": "No selected file"}), 400
 
-  if file.content_type not in ["image/jpeg", "image/png", "image/jpg", "image/webp", "image/heic", "image/heif"]:
-    return jsonify({"status": "error", "message": "Invalid file type."}), 400
+  # More robust check: ensure it's an image type
+  if not file.content_type or not file.content_type.startswith('image/'):
+    return jsonify({"status": "error", "message": f"Invalid file type: {file.content_type}. Expected an image."}), 400
 
   timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
   unique_filename = f"{timestamp}_{file.filename}"
