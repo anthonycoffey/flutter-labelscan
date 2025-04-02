@@ -114,5 +114,6 @@ Project Link: [https://github.com/anthonycoffey/flutter-labelscan](https://githu
 
 Author: [Anthony Coffey](https://coffey.codes/)
 
+---
 
 Made with ❤️ using Flutter and Python
