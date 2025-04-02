@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // Added Riverpod import
 import 'firebase_options.dart'; // Import generated options
 
 import 'package:flutter_labelscan/screens/auth_wrapper.dart';
@@ -11,7 +12,11 @@ void main() async {
   // Initialize Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  runApp(const MyApp());
+  runApp(
+    const ProviderScope( // Wrap with ProviderScope
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -25,6 +30,14 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         visualDensity: VisualDensity.adaptivePlatformDensity,
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue), // Changed seed color to blue
+        appBarTheme: const AppBarTheme( // Added AppBarTheme
+          shape: Border( // Added Border shape
+            bottom: BorderSide( // Added bottom BorderSide
+              color: Colors.grey, // Set border color to light gray
+              width: 1.0, // Set border width
+            ),
+          ),
+        ),
       ),
       home: const AuthWrapper(), // Added const
     );

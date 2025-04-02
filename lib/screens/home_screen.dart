@@ -1,332 +1,149 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:camera/camera.dart';
-import 'package:flutter_labelscan/screens/camera_screen.dart';
-import 'dart:convert'; // For jsonDecode
-import 'dart:io'; // For File
-import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart'; // For MediaType
-import 'package:mime/mime.dart'; // Import the mime package
-import 'package:intl/intl.dart'; // For currency formatting
-import 'package:flutter_labelscan/models/scanned_item.dart';
-import 'package:flutter_slidable/flutter_slidable.dart'; // Import Slidable
-import 'package:image_picker/image_picker.dart'; // Import image_picker
-import 'dart:math'; // Import for Random
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:intl/intl.dart'; // For NumberFormat
 
-class HomeScreen extends StatefulWidget {
+import '../models/scanned_item.dart';
+import '../providers/home_providers.dart';
+import '../services/api_service.dart'; // For ApiException
+
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-class _HomeScreenState extends State<HomeScreen> {
-  // List of trendy processing words
-  final List<String> _processingWords = [
-    "Vibing",
-    "Cooking",
-    "Analyzing",
-    "Decoding",
-    "Unpacking",
-    "Processing", // Keep the original too!
-    "Thinking",
-    "Calculating",
-    "Scanning",
-    "Inspecting",
-    "Reviewing",
-    "Checking",
-    "Working",
-    "Loading",
-    "Fetching",
-    "Magic...", // A bit of fun
-    "Beaming",
-    "Zooming",
-  ];
-  final Random _random = Random(); // Random number generator
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Watch the state and listen for errors
+    final homeState = ref.watch(homeControllerProvider);
+    final homeController = ref.read(homeControllerProvider.notifier);
 
-  // We will add state variables for scanned items, etc. here
-
-  // Removed _logout function, it's now in MyAccountScreen
-
-  final List<ScannedItem> _scannedItems = []; // State variable for the table
-  final double _taxRate =
-      0.0825; // Example: 8.25% tax rate (Austin, TX) - make this configurable later
-  bool _isProcessing = false; // To show loading indicator
-  String _processingMessage = "Processing..."; // State for the message
-
-  void _scanLabel() async {
-    try {
-      // Obtain a list of the available cameras on the device.
-      final cameras = await availableCameras();
-
-      if (cameras.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No cameras found on this device.')),
-        );
-        return;
+    // Listen for errors and show SnackBars
+    ref.listen<HomeState>(homeControllerProvider, (previous, next) {
+      if (next.error != null && next.error != previous?.error) {
+        String errorMessage = "An unknown error occurred.";
+        if (next.error is ApiException) {
+          errorMessage = (next.error as ApiException).message;
+        } else if (next.error is String) {
+          errorMessage = next.error as String;
+        }
+        // Ensure context is still valid before showing SnackBar
+        if (context.mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(
+             SnackBar(
+               content: Text(errorMessage),
+               backgroundColor: Colors.redAccent,
+             ),
+           );
+           // Optionally clear the error after showing it
+           // Future.microtask(() => homeController.clearError());
+        }
       }
-
-      // Show the camera screen and wait for a result (XFile object)
-      final imageFile = await Navigator.push<XFile?>(
-        // Expect XFile?
-        context,
-        MaterialPageRoute(builder: (context) => CameraScreen(cameras: cameras)),
-      );
-
-      if (imageFile != null) {
-        // Check if XFile is not null
-        debugPrint("Image captured: ${imageFile.path}");
-        debugPrint("Image MIME type: ${imageFile.mimeType}"); // Log mime type
-        await _uploadAndProcessImage(imageFile); // Pass the XFile
-      } else {
-        debugPrint("No image file received");
-      }
-    } catch (e) {
-      debugPrint("Error opening camera: $e");
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Error accessing camera.')));
-    }
-  }
-
-  // Function to pick image from gallery
-  Future<void> _pickImageFromGallery() async {
-    final ImagePicker picker = ImagePicker();
-    try {
-      // Request image from gallery
-      final XFile? imageFile = await picker.pickImage(source: ImageSource.gallery);
-      if (imageFile != null) {
-        debugPrint("Image picked from gallery: ${imageFile.path}");
-        await _uploadAndProcessImage(imageFile);
-      } else {
-        debugPrint("No image selected from gallery");
-      }
-    } catch (e) {
-      debugPrint("Error picking image from gallery: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error accessing gallery.'))
-      );
-    }
-  }
-
-  // Updated to accept XFile
-  Future<void> _uploadAndProcessImage(XFile imageXFile) async {
-    // Pick a random word when processing starts
-    final String randomWord = _processingWords[_random.nextInt(_processingWords.length)];
-    setState(() {
-      _isProcessing = true;
-      _processingMessage = "$randomWord..."; // Update the message
     });
 
-    const String apiUrl =
-        "https://flask-api-87033406861.us-central1.run.app/api/extract-data";
-    File imageFile = File(imageXFile.path); // Get path from XFile
+    // Listen for pending items to show confirmation dialog
+    ref.listen<HomeState>(homeControllerProvider, (previous, next) {
+      final hasNewPendingItem = next.pendingItemDescription != null &&
+                                next.pendingItemPriceCents != null;
+      final wasDifferent = previous == null ||
+                           next.pendingItemDescription != previous.pendingItemDescription ||
+                           next.pendingItemPriceCents != previous.pendingItemPriceCents;
 
-    // Determine content type more robustly
-    MediaType? contentType;
-    String? mimeTypeString = imageXFile.mimeType;
-
-    if (mimeTypeString == null) {
-      debugPrint(
-        "XFile mimeType is null. Attempting lookup from path: ${imageXFile.path}",
-      );
-      mimeTypeString = lookupMimeType(imageXFile.path); // Use mime package
-      if (mimeTypeString != null) {
-        debugPrint("MIME type looked up from path: $mimeTypeString");
-      } else {
-        debugPrint("Could not determine MIME type from path either.");
-      }
-    }
-
-    if (mimeTypeString != null) {
-      try {
-        contentType = MediaType.parse(mimeTypeString);
-      } catch (e) {
-        debugPrint(
-          "Error parsing determined mimeType: $mimeTypeString. Error: $e",
-        );
-        // Fallback: Send without explicit content type if parsing fails
-        contentType = null;
-      }
-    } else {
-      debugPrint(
-        "Could not determine MIME type. Sending without explicit content type.",
-      );
-      // contentType remains null
-    }
-
-    try {
-      var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
-      request.files.add(
-        await http.MultipartFile.fromPath(
-          'file', // This 'file' key must match what your Flask backend expects
-          imageFile.path,
-          contentType: contentType, // Pass the determined content type
-        ),
-      );
-
-      debugPrint(
-        "Sending request to API with content type: ${contentType?.toString() ?? 'Not specified'}",
-      );
-      var streamedResponse = await request.send();
-      var response = await http.Response.fromStream(streamedResponse);
-
-      debugPrint("API Response Status: ${response.statusCode}");
-      debugPrint("API Response Body: ${response.body}");
-
-      if (response.statusCode == 200) {
-        try {
-          // Add nested try for processing successful response
-          final decodedBody = jsonDecode(response.body);
-          // Check if 'data' exists and is a Map
-          if (decodedBody != null && decodedBody['data'] is Map) {
-            final data = decodedBody['data'] as Map; // Cast to Map
-            // Ensure data extraction is safe
-            final description = data['description']?.toString() ?? 'No description';
-            final amount = data['amount'];
-            await _showConfirmationDialog(description, amount);
-          } else {
-            // Handle cases where 'data' is missing or not a Map
-            debugPrint(
-              "API Error: Unexpected response format. Expected 'data' as Map. Body: ${response.body}",
+      if (hasNewPendingItem && wasDifferent) {
+        // Using Future.microtask to avoid calling dialog during build/state update
+        Future.microtask(() {
+          if (context.mounted) { // Check if widget is still in the tree
+            _showScanConfirmationDialog(
+              context,
+              homeController,
+              next.pendingItemDescription!,
+              next.pendingItemPriceCents!,
+              homeState.formatCents, // Pass formatter from current state
             );
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Error: Received unexpected data format from server.',
-                ),
+          }
+        });
+      }
+    });
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('LabelScan'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_sweep),
+            tooltip: 'Clear All Items',
+            // Disable button if list is empty or processing
+            onPressed: homeState.scannedItems.isEmpty || homeState.isProcessing
+                ? null
+                : () => _showClearConfirmationDialog(context, homeController),
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          Column(
+            children: <Widget>[
+              Expanded(
+                child: homeState.scannedItems.isEmpty
+                    ? const Center(child: Text('Scan or upload your first label!'))
+                    : _ScannedItemsListView(
+                        items: homeState.scannedItems,
+                        onEdit: (index) => _showEditItemDialog(context, ref, index),
+                        onDelete: (index) {
+                          homeController.deleteItem(index);
+                          // Show confirmation SnackBar after delete
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Item deleted')),
+                          );
+                        },
+                      ),
               ),
-            );
-          }
-        } catch (e) {
-          // Add nested catch for errors during processing
-          debugPrint(
-            "Error processing successful API response (status 200): $e. Body: ${response.body}",
-          );
-          // Show a more specific error message
-          String errorSummary =
-              e.toString().split('\n').first; // Get first line of error
-          if (errorSummary.length > 100) {
-            // Limit length
-            errorSummary = '${errorSummary.substring(0, 97)}...';
-          }
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error processing server response: $errorSummary'),
-            ),
-          );
-        }
-      } else {
-        // Handle API errors (non-200 status)
-        debugPrint("API Error: ${response.statusCode} - ${response.body}");
-        // Include response body in SnackBar for better debugging
-        String errorDetail =
-            response.body.isNotEmpty
-                ? response.body
-                : response.reasonPhrase ?? 'Unknown error';
-        // Limit length to avoid overly long SnackBars
-        if (errorDetail.length > 100) {
-          errorDetail = '${errorDetail.substring(0, 97)}...';
-        }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error processing image: $errorDetail')),
-        );
-      }
-    } catch (e) {
-      // Outer catch: Handle network errors or errors during the request sending phase
-      debugPrint("Error during image upload/API request: $e"); // Clarify scope
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Network error or server issue. Please try again.'),
-        ), // Keep this generic for network issues
-      );
-    } finally {
-      setState(() {
-        _isProcessing = false;
-      });
-      // Optionally delete the temporary image file
-      // try { await imageFile.delete(); } catch (e) { print("Error deleting temp file: $e"); }
-    }
+              // Totals Section
+              if (homeState.scannedItems.isNotEmpty)
+                _TotalsDisplay(
+                  subtotalCents: homeState.subtotalCents,
+                  taxCents: homeState.taxCents,
+                  totalCents: homeState.totalCents,
+                  taxRate: homeState.taxRate,
+                  formatCents: homeState.formatCents, // Pass formatter
+                ),
+              // Leave space for the Floating Action Button
+              const SizedBox(height: 80),
+            ],
+          ),
+          // Loading Indicator Overlay
+          if (homeState.isProcessing)
+            _LoadingOverlay(message: homeState.processingMessage),
+        ],
+      ),
+      floatingActionButton: _ActionButtons(
+        isProcessing: homeState.isProcessing,
+        onScan: () => homeController.scanLabel(context), // Pass context
+        onUpload: () => homeController.pickImageFromGallery(context), // Pass context
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+    );
   }
 
-  Future<void> _showConfirmationDialog(
-    String description,
-    dynamic amount,
-  ) async {
-    int? priceInCents; // Make nullable to handle N/A case
-    String displayPrice = "N/A";
-    bool canConfirm = false; // Control confirm button state
+  // --- Dialogs (kept in UI layer, but trigger controller actions) ---
 
-    // Check for "N/A" first
-    if (amount is String && amount.toUpperCase() == "N/A") {
-      debugPrint("Price is N/A for item: $description");
-      displayPrice = "N/A - Not Found";
-      priceInCents = null; // Explicitly null for N/A
-      canConfirm = false;
-    } else if (amount is String) {
-      priceInCents = int.tryParse(amount);
-    } else if (amount is int) {
-      priceInCents = amount;
-    } else if (amount is double) {
-      priceInCents = amount.round(); // Handle potential decimals
-    }
-
-    // If parsing failed or type was invalid (and not N/A)
-    if (priceInCents == null &&
-        !(amount is String && amount.toUpperCase() == "N/A")) {
-      debugPrint(
-        "Error: Invalid or unparsable amount received: ${amount.runtimeType}, value: $amount",
-      );
-      displayPrice = "Invalid Price";
-      priceInCents = null; // Ensure it's null
-      canConfirm = false;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Received invalid price data.')),
-      );
-      // Optionally return early if you don't want to show the dialog for invalid data
-      // return;
-    } else if (priceInCents != null) {
-      // Format valid price for display
-      displayPrice = NumberFormat.currency(
-        locale: 'en_US',
-        symbol: '\$',
-      ).format(priceInCents / 100.0);
-      canConfirm = true; // Allow confirmation only if price is valid
-    }
-
-    return showDialog<void>(
+  void _showClearConfirmationDialog(BuildContext context, HomeController controller) {
+    showDialog<void>(
       context: context,
-      barrierDismissible: false, // User must tap button
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Confirm Item'),
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                Text('Description: $description'),
-                Text('Price: $displayPrice'),
-              ],
-            ),
-          ),
+          title: const Text('Start Over?'),
+          content: const Text('Are you sure you want to clear all scanned items?'),
           actions: <Widget>[
             TextButton(
               child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop(); // Close dialog
-              },
+              onPressed: () => Navigator.of(context).pop(),
             ),
             TextButton(
-              // Disable confirm button if price is N/A or invalid
-              onPressed:
-                  canConfirm
-                      ? () {
-                        if (priceInCents != null) {
-                          // Double check price isn't null
-                          _addItemToTable(description, priceInCents);
-                        }
-                        Navigator.of(context).pop(); // Close dialog
-                      }
-                      : null, // Set onPressed to null to disable
-              child: const Text('Confirm'),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Clear All'),
+              onPressed: () {
+                controller.clearAllItems(); // Call controller method
+                Navigator.of(context).pop();
+              },
             ),
           ],
         );
@@ -334,53 +151,24 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _addItemToTable(String description, int priceInCents) {
-    setState(() {
-      _scannedItems.add(
-        ScannedItem(description: description, priceInCents: priceInCents),
-      );
-    });
-  }
+  Future<void> _showEditItemDialog(BuildContext context, WidgetRef ref, int index) async {
+    // Access the current state via ref.read since this is triggered by an action
+    final currentItem = ref.read(homeControllerProvider).scannedItems[index];
+    final controller = ref.read(homeControllerProvider.notifier);
 
-  // --- Delete Item ---
-  void _deleteItem(int index) {
-    setState(() {
-      _scannedItems.removeAt(index);
-    });
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Item deleted')));
-  }
-
-  // --- Edit Item ---
-  void _editItem(int index, String newDescription, int newPriceInCents) {
-    setState(() {
-      _scannedItems[index] = ScannedItem(
-        description: newDescription,
-        priceInCents: newPriceInCents,
-      );
-    });
-  }
-
-  Future<void> _showEditItemDialog(int index) async {
-    final ScannedItem currentItem = _scannedItems[index];
-    final descriptionController = TextEditingController(
-      text: currentItem.description,
-    );
-    // Convert cents to dollars string for the text field
+    final descriptionController = TextEditingController(text: currentItem.description);
     final priceController = TextEditingController(
       text: (currentItem.priceInCents / 100.0).toStringAsFixed(2),
     );
-    final formKey = GlobalKey<FormState>(); // For validation
+    final formKey = GlobalKey<FormState>();
 
     return showDialog<void>(
       context: context,
-      barrierDismissible: false, // User must tap button
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Edit Item'),
           content: Form(
-            // Use a Form for validation
             key: formKey,
             child: SingleChildScrollView(
               child: ListBody(
@@ -398,17 +186,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   TextFormField(
                     controller: priceController,
                     decoration: const InputDecoration(labelText: 'Price (\$)'),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter a price';
-                      }
+                      if (value == null || value.isEmpty) return 'Please enter a price';
                       final price = double.tryParse(value);
-                      if (price == null || price < 0) {
-                        return 'Please enter a valid positive price';
-                      }
+                      if (price == null || price < 0) return 'Please enter a valid positive price';
                       return null;
                     },
                   ),
@@ -419,20 +201,16 @@ class _HomeScreenState extends State<HomeScreen> {
           actions: <Widget>[
             TextButton(
               child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop(); // Close dialog
-              },
+              onPressed: () => Navigator.of(context).pop(),
             ),
             TextButton(
               child: const Text('Save'),
               onPressed: () {
                 if (formKey.currentState!.validate()) {
                   final newDescription = descriptionController.text.trim();
-                  // Convert dollars string back to cents integer
-                  final newPriceInCents =
-                      (double.parse(priceController.text) * 100).round();
-                  _editItem(index, newDescription, newPriceInCents);
-                  Navigator.of(context).pop(); // Close dialog
+                  final newPriceInCents = (double.parse(priceController.text) * 100).round();
+                  controller.editItem(index, newDescription, newPriceInCents); // Call controller
+                  Navigator.of(context).pop();
                 }
               },
             ),
@@ -442,41 +220,41 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Calculation methods
-  int get _subtotalCents =>
-      _scannedItems.fold(0, (sum, item) => sum + item.priceInCents);
-  int get _taxCents => (_subtotalCents * _taxRate).round();
-  int get _totalCents => _subtotalCents + _taxCents;
-
-  // Formatting helper
-  String _formatCents(int cents) {
-    final currencyFormat = NumberFormat.currency(locale: 'en_US', symbol: '\$');
-    return currencyFormat.format(cents / 100.0);
-  }
-
-  void _showClearConfirmationDialog() {
-    if (_scannedItems.isEmpty) return; // Don't show if already empty
-
-    showDialog<void>(
+  // --- New Dialog for Scan Confirmation ---
+  Future<void> _showScanConfirmationDialog(
+    BuildContext context,
+    HomeController controller,
+    String description,
+    int priceInCents,
+    String Function(int) formatCents, // Receive formatter
+  ) async {
+    return showDialog<void>(
       context: context,
+      barrierDismissible: false, // User must tap button!
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Start Over?'),
-          content: const Text(
-            'Are you sure you want to clear all scanned items?',
+          title: const Text('Confirm Item'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                const SizedBox(height: 10),
+                Text('Description: $description'),
+                Text('Price: ${formatCents(priceInCents)}'),
+              ],
+            ),
           ),
           actions: <Widget>[
             TextButton(
               child: const Text('Cancel'),
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () {
+                controller.cancelPendingItem(); // Call controller action
+                Navigator.of(context).pop();
+              },
             ),
             TextButton(
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Clear All'),
+              child: const Text('Add'),
               onPressed: () {
-                setState(() {
-                  _scannedItems.clear();
-                });
+                controller.confirmPendingItem(); // Call controller action
                 Navigator.of(context).pop();
               },
             ),
@@ -485,220 +263,186 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
   }
+}
+
+// --- Sub-Widgets ---
+
+class _ScannedItemsListView extends StatelessWidget {
+  final List<ScannedItem> items;
+  final Function(int) onEdit;
+  final Function(int) onDelete;
+
+  const _ScannedItemsListView({
+    required this.items,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // Calculate totals FIRST
-    final subtotal = _subtotalCents;
-    final taxes = _taxCents;
-    final total = _totalCents;
+    return Scrollbar(
+      thumbVisibility: true,
+      child: ListView.builder(
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          final item = items[index];
+          return Slidable(
+            key: ValueKey(item.hashCode), // Use a unique key, hashCode might work if items are immutable enough
+            startActionPane: ActionPane(
+              motion: const ScrollMotion(),
+              children: [
+                SlidableAction(
+                  onPressed: (context) => onEdit(index),
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  icon: Icons.edit,
+                  label: 'Edit',
+                ),
+              ],
+            ),
+            endActionPane: ActionPane(
+              motion: const ScrollMotion(),
+              dismissible: DismissiblePane(onDismissed: () => onDelete(index)),
+              children: [
+                SlidableAction(
+                  onPressed: (context) => onDelete(index),
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                  icon: Icons.delete,
+                  label: 'Delete',
+                ),
+              ],
+            ),
+            child: ListTile(
+              title: Text(item.description),
+              trailing: Text(item.priceFormatted),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('LabelScan'), // Changed title
-        actions: [
-          // Clear Button (Kept)
-          IconButton(
-            icon: const Icon(Icons.delete_sweep),
-            tooltip: 'Clear All Items',
-            onPressed: _showClearConfirmationDialog,
+class _TotalsDisplay extends StatelessWidget {
+  final int subtotalCents;
+  final int taxCents;
+  final int totalCents;
+  final double taxRate;
+  final String Function(int) formatCents; // Receive formatter function
+
+  const _TotalsDisplay({
+    required this.subtotalCents,
+    required this.taxCents,
+    required this.totalCents,
+    required this.taxRate,
+    required this.formatCents,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Divider(),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Subtotal', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(formatCents(subtotalCents), style: const TextStyle(fontWeight: FontWeight.bold)),
+            ],
           ),
-          // Logout Button (Removed)
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Tax (${NumberFormat.percentPattern().format(taxRate)})'),
+              Text(formatCents(taxCents)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Total', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Text(formatCents(totalCents), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ],
+          ),
         ],
       ),
-      body: Stack(
-        // Use Stack to overlay loading indicator
-        children: [
-          Column(
-            children: <Widget>[
-              Expanded(
-                // Make ListView scrollable
-                child: _scannedItems.isEmpty
-                    ? const Center(child: Text('Scan your first label!'))
-                    : Scrollbar( // Wrap ListView.builder with Scrollbar
-                        thumbVisibility: true, // Make scrollbar thumb always visible
-                        child: ListView.builder(
-                          itemCount: _scannedItems.length,
-                          itemBuilder: (context, index) {
-                            final item = _scannedItems[index];
-                            return Slidable(
-                              key: ValueKey(item), // Unique key for each item
-                              // Define the start action pane (e.g., for Edit)
-                              startActionPane: ActionPane(
-                                motion:
-                                    const ScrollMotion(), // Or BehindMotion, StretchMotion, etc.
-                                children: [
-                                  SlidableAction(
-                                    onPressed:
-                                        (context) => _showEditItemDialog(index),
-                                    backgroundColor: Colors.blue,
-                                    foregroundColor: Colors.white,
-                                    icon: Icons.edit,
-                                    label: 'Edit',
-                                  ),
-                                ],
-                              ),
-                              // Define the end action pane (e.g., for Delete)
-                              endActionPane: ActionPane(
-                                motion: const ScrollMotion(),
-                                dismissible: DismissiblePane(
-                                  onDismissed: () {
-                                    _deleteItem(index);
-                                  },
-                                ),
-                                children: [
-                                  SlidableAction(
-                                    onPressed:
-                                        (context) => _deleteItem(
-                                          index,
-                                        ), // Add onPressed back
-                                    backgroundColor: Colors.red,
-                                    foregroundColor: Colors.white,
-                                    icon: Icons.delete,
-                                    label: 'Delete',
-                                  ),
-                                ],
-                              ),
-                              // The child of the Slidable is the actual list item content
-                              child: ListTile(
-                                title: Text(item.description),
-                                trailing: Text(item.priceFormatted),
-                              ),
-                            );
-                          },
-                        ),
-                      ), // End of Scrollbar
-              ), // End of Expanded
-              // --- Totals Section (Moved INSIDE Column children) ---
-              if (_scannedItems.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    16.0,
-                    0,
-                    16.0,
-                    16.0,
-                  ), // Adjust padding
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const Divider(),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Subtotal',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            _formatCents(subtotal),
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ), // Use calculated subtotal
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Tax (${NumberFormat.percentPattern().format(_taxRate)})',
-                          ),
-                          Text(_formatCents(taxes)), // Use calculated taxes
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Total',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          Text(
-                            _formatCents(total),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ), // Use calculated total
-                        ],
-                      ),
-                    ],
-                  ),
-                ), // End of Totals Padding
-              // Leave space for the Floating Action Button (ensure it's the last item before Column closes)
-              const SizedBox(height: 80),
-            ], // End of Column children
-          ), // End of Column
-          // Loading Indicator Overlay
-          if (_isProcessing)
-            Container(
-              color: Colors.black.withOpacity(0.5),
-              child: Center( // Removed 'const' here
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 10),
-                    Text(
-                      _processingMessage, // Use the state variable here
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ],
-                ),
-              ),
+    );
+  }
+}
+
+class _ActionButtons extends StatelessWidget {
+  final bool isProcessing;
+  final VoidCallback onScan;
+  final VoidCallback onUpload;
+
+  const _ActionButtons({
+    required this.isProcessing,
+    required this.onScan,
+    required this.onUpload,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Color activeColor = Theme.of(context).colorScheme.primary;
+    final Color inactiveColor = Colors.grey[600]!;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: <Widget>[
+        FloatingActionButton(
+          heroTag: 'upload_button',
+          onPressed: isProcessing ? null : onUpload,
+          tooltip: 'Upload Image',
+          foregroundColor: isProcessing ? inactiveColor : activeColor,
+          backgroundColor: Colors.transparent,
+          elevation: 0.0, focusElevation: 0.0, hoverElevation: 0.0, highlightElevation: 0.0,
+          shape: CircleBorder(side: BorderSide(color: isProcessing ? inactiveColor : activeColor, width: 1.5)),
+          child: const Icon(Icons.photo_library),
+        ),
+        const SizedBox(width: 16),
+        FloatingActionButton(
+          heroTag: 'scan_button',
+          onPressed: isProcessing ? null : onScan,
+          tooltip: 'Scan Label',
+          foregroundColor: isProcessing ? inactiveColor : activeColor,
+          backgroundColor: Colors.transparent,
+          elevation: 0.0, focusElevation: 0.0, hoverElevation: 0.0, highlightElevation: 0.0,
+          shape: CircleBorder(side: BorderSide(color: isProcessing ? inactiveColor : activeColor, width: 1.5)),
+          child: const Icon(Icons.qr_code_scanner),
+        ),
+      ],
+    );
+  }
+}
+
+class _LoadingOverlay extends StatelessWidget {
+  final String message;
+  const _LoadingOverlay({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.black.withOpacity(0.5),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 10),
+            Text(
+              message,
+              style: const TextStyle(color: Colors.white),
             ),
-       ],
-     ),
-     // Use two FloatingActionButtons in a Row
-     floatingActionButton: Row(
-       mainAxisAlignment: MainAxisAlignment.center, // Center buttons horizontally
-       children: <Widget>[
-         FloatingActionButton( // Changed to standard FAB
-           heroTag: 'upload_button', // Unique heroTag for Upload
-           onPressed: _isProcessing ? null : _pickImageFromGallery,
-           // label: const Text('Upload'), // Removed label
-           tooltip: 'Upload Image', // Added tooltip
-           foregroundColor: _isProcessing ? Colors.grey[600] : Theme.of(context).colorScheme.primary, // Icon color
-           backgroundColor: Colors.transparent, // Transparent background
-           elevation: 0.0, // Remove shadow
-           focusElevation: 0.0,
-           hoverElevation: 0.0,
-           highlightElevation: 0.0,
-           shape: CircleBorder( // Add outline
-             side: BorderSide(
-               color: _isProcessing ? Colors.grey[600]! : Theme.of(context).colorScheme.primary,
-               width: 1.5, // Adjust outline thickness if needed
-             ),
-           ),
-           child: const Icon(Icons.photo_library), // Use child for icon
-         ),
-         const SizedBox(width: 16), // Spacing between buttons
-         FloatingActionButton( // Changed to standard FAB
-           heroTag: 'scan_button', // Unique heroTag for Scan
-           onPressed: _isProcessing ? null : _scanLabel,
-           // label: const Text('Scan Label'), // Removed label
-           tooltip: 'Scan Label', // Added tooltip
-           foregroundColor: _isProcessing ? Colors.grey[600] : Theme.of(context).colorScheme.primary, // Icon color
-           backgroundColor: Colors.transparent, // Transparent background
-           elevation: 0.0, // Remove shadow
-           focusElevation: 0.0,
-           hoverElevation: 0.0,
-           highlightElevation: 0.0,
-           shape: CircleBorder( // Add outline
-             side: BorderSide(
-               color: _isProcessing ? Colors.grey[600]! : Theme.of(context).colorScheme.primary,
-               width: 1.5, // Adjust outline thickness if needed
-             ),
-           ),
-           child: const Icon(Icons.qr_code_scanner), // Changed icon
-         ),
-       ],
-     ),
-     floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat, // Position the row at the bottom center
+          ],
+        ),
+      ),
     );
   }
 }
