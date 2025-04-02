@@ -6,6 +6,7 @@ import 'dart:convert'; // For jsonDecode
 import 'dart:io'; // For File
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart'; // For MediaType
+import 'package:mime/mime.dart'; // Import the mime package
 import 'package:intl/intl.dart'; // For currency formatting
 import 'package:flutter_labelscan/models/scanned_item.dart'; // Create this model later
 
@@ -51,14 +52,14 @@ class _HomeScreenState extends State<HomeScreen> {
         );
 
         if (imageFile != null) { // Check if XFile is not null
-          print("Image captured: ${imageFile.path}");
-          print("Image MIME type: ${imageFile.mimeType}"); // Log mime type
+          debugPrint("Image captured: ${imageFile.path}");
+          debugPrint("Image MIME type: ${imageFile.mimeType}"); // Log mime type
           await _uploadAndProcessImage(imageFile); // Pass the XFile
         } else {
-          print("No image file received");
+          debugPrint("No image file received");
         }
     } catch (e) {
-        print("Error opening camera: $e");
+        debugPrint("Error opening camera: $e");
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Error accessing camera.'))
         );
@@ -72,18 +73,31 @@ class _HomeScreenState extends State<HomeScreen> {
     const String apiUrl = "https://flask-api-87033406861.us-central1.run.app/api/extract-data";
     File imageFile = File(imageXFile.path); // Get path from XFile
 
-    // Determine content type
+    // Determine content type more robustly
     MediaType? contentType;
-    if (imageXFile.mimeType != null) {
+    String? mimeTypeString = imageXFile.mimeType;
+
+    if (mimeTypeString == null) {
+      debugPrint("XFile mimeType is null. Attempting lookup from path: ${imageXFile.path}");
+      mimeTypeString = lookupMimeType(imageXFile.path); // Use mime package
+      if (mimeTypeString != null) {
+        debugPrint("MIME type looked up from path: $mimeTypeString");
+      } else {
+        debugPrint("Could not determine MIME type from path either.");
+      }
+    }
+
+    if (mimeTypeString != null) {
       try {
-        contentType = MediaType.parse(imageXFile.mimeType!);
+        contentType = MediaType.parse(mimeTypeString);
       } catch (e) {
-        print("Error parsing mimeType: ${imageXFile.mimeType}. Sending without explicit content type. Error: $e");
-        // Optionally fall back to guessing based on extension or send without
+        debugPrint("Error parsing determined mimeType: $mimeTypeString. Error: $e");
+        // Fallback: Send without explicit content type if parsing fails
+        contentType = null;
       }
     } else {
-       print("XFile mimeType is null. Sending without explicit content type.");
-       // Could add logic here to guess based on file extension if needed
+       debugPrint("Could not determine MIME type. Sending without explicit content type.");
+       // contentType remains null
     }
 
 
@@ -92,22 +106,26 @@ class _HomeScreenState extends State<HomeScreen> {
         request.files.add(await http.MultipartFile.fromPath(
             'file', // This 'file' key must match what your Flask backend expects
             imageFile.path,
+            contentType: contentType, // Pass the determined content type
         ));
 
-        print("Sending request to API with content type: ${contentType?.toString() ?? 'Not specified'}");
+        debugPrint("Sending request to API with content type: ${contentType?.toString() ?? 'Not specified'}");
         var streamedResponse = await request.send();
         var response = await http.Response.fromStream(streamedResponse);
 
-        print("API Response Status: ${response.statusCode}");
-        print("API Response Body: ${response.body}");
+        debugPrint("API Response Status: ${response.statusCode}");
+        debugPrint("API Response Body: ${response.body}");
 
 
         if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
-            await _showConfirmationDialog(data['description'], data['amount']);
+            // Ensure data extraction is safe
+            final description = data?['data']?['description']?.toString() ?? 'No description';
+            final amount = data?['data']?['amount']; // Keep amount dynamic for now
+            await _showConfirmationDialog(description, amount);
         } else {
             // Handle API errors (non-200 status)
-            print("API Error: ${response.statusCode} - ${response.body}");
+            debugPrint("API Error: ${response.statusCode} - ${response.body}");
             // Include response body in SnackBar for better debugging
             String errorDetail = response.body.isNotEmpty ? response.body : response.reasonPhrase ?? 'Unknown error';
             // Limit length to avoid overly long SnackBars
@@ -120,7 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }
     } catch (e) {
         // Handle network or other errors during API call
-        print("Error uploading/processing image: $e");
+        debugPrint("Error uploading/processing image: $e");
         ScaffoldMessenger.of(context).showSnackBar(
            const SnackBar(content: Text('Network error or server issue. Please try again.'))
         );
@@ -141,9 +159,8 @@ class _HomeScreenState extends State<HomeScreen> {
         priceInCents = amount;
     } else if (amount is double) {
         priceInCents = amount.round(); // Handle potential decimals if API changes
-    }
-    else {
-        print("Error: Invalid amount type received: ${amount.runtimeType}");
+    } else {
+        debugPrint("Error: Invalid amount type received: ${amount.runtimeType}, value: $amount");
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Received invalid price data.'))
         );
