@@ -11,6 +11,7 @@ import 'package:intl/intl.dart'; // For currency formatting
 import 'package:flutter_labelscan/models/scanned_item.dart';
 import 'package:flutter_slidable/flutter_slidable.dart'; // Import Slidable
 import 'package:image_picker/image_picker.dart'; // Import image_picker
+import 'dart:math'; // Import for Random
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,8 +19,30 @@ class HomeScreen extends StatefulWidget {
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
-
 class _HomeScreenState extends State<HomeScreen> {
+  // List of trendy processing words
+  final List<String> _processingWords = [
+    "Vibing",
+    "Cooking",
+    "Analyzing",
+    "Decoding",
+    "Unpacking",
+    "Processing", // Keep the original too!
+    "Thinking",
+    "Calculating",
+    "Scanning",
+    "Inspecting",
+    "Reviewing",
+    "Checking",
+    "Working",
+    "Loading",
+    "Fetching",
+    "Magic...", // A bit of fun
+    "Beaming",
+    "Zooming",
+  ];
+  final Random _random = Random(); // Random number generator
+
   // We will add state variables for scanned items, etc. here
 
   // Removed _logout function, it's now in MyAccountScreen
@@ -28,6 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final double _taxRate =
       0.0825; // Example: 8.25% tax rate (Austin, TX) - make this configurable later
   bool _isProcessing = false; // To show loading indicator
+  String _processingMessage = "Processing..."; // State for the message
 
   void _scanLabel() async {
     try {
@@ -86,8 +110,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Updated to accept XFile
   Future<void> _uploadAndProcessImage(XFile imageXFile) async {
+    // Pick a random word when processing starts
+    final String randomWord = _processingWords[_random.nextInt(_processingWords.length)];
     setState(() {
       _isProcessing = true;
+      _processingMessage = "$randomWord..."; // Update the message
     });
 
     const String apiUrl =
@@ -486,10 +513,11 @@ class _HomeScreenState extends State<HomeScreen> {
             children: <Widget>[
               Expanded(
                 // Make ListView scrollable
-                child:
-                    _scannedItems.isEmpty
-                        ? const Center(child: Text('Scan your first label!'))
-                        : ListView.builder(
+                child: _scannedItems.isEmpty
+                    ? const Center(child: Text('Scan your first label!'))
+                    : Scrollbar( // Wrap ListView.builder with Scrollbar
+                        thumbVisibility: true, // Make scrollbar thumb always visible
+                        child: ListView.builder(
                           itemCount: _scannedItems.length,
                           itemBuilder: (context, index) {
                             final item = _scannedItems[index];
@@ -539,6 +567,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             );
                           },
                         ),
+                      ), // End of Scrollbar
               ), // End of Expanded
               // --- Totals Section (Moved INSIDE Column children) ---
               if (_scannedItems.isNotEmpty)
@@ -608,14 +637,14 @@ class _HomeScreenState extends State<HomeScreen> {
           if (_isProcessing)
             Container(
               color: Colors.black.withOpacity(0.5),
-              child: const Center(
+              child: Center( // Removed 'const' here
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     CircularProgressIndicator(),
                     SizedBox(height: 10),
                     Text(
-                      "Processing...",
+                      _processingMessage, // Use the state variable here
                       style: TextStyle(color: Colors.white),
                     ),
                   ],
