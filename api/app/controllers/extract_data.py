@@ -71,8 +71,9 @@ def extract_data():
         text=""" 1. take this cloud vision api response and extract price data from it
                  2. convert dollar price to cents
                  3. return JSON object with price data in the following schema:
-                 {"description":"[infer product description here]","amount":"[extracted price here (cents)]"}
+                 {"description":"*infer product description here*","amount":"*extracted price here (cents)*"}
                  ** note: description should be a single line of text, no new lines and a maximum of 35 characters
+                 ** do not wrap the response in an array, just return the JSON object
         """,
         ),
         types.Part.from_text(
@@ -82,7 +83,7 @@ def extract_data():
       ),
     ]
     generate_content_config = types.GenerateContentConfig(
-      temperature=1,
+      temperature=0.75,
       top_p=0.95,
       top_k=40,
       max_output_tokens=8192,
