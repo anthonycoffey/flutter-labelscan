@@ -24,9 +24,9 @@ class MyApp extends StatelessWidget {
       title: 'LabelScan App',
       theme: ThemeData(
         visualDensity: VisualDensity.adaptivePlatformDensity,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue), // Changed seed color to blue
       ),
-      home: AuthWrapper(),
+      home: const AuthWrapper(), // Added const
     );
   }
 }

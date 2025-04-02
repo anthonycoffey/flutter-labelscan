@@ -22,11 +22,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   // We will add state variables for scanned items, etc. here
   
-
-  void _logout() async {
-    await FirebaseAuth.instance.signOut();
-    // Navigation happens automatically via AuthWrapper stream
-  }
+  // Removed _logout function, it's now in MyAccountScreen
 
   final List<ScannedItem> _scannedItems = []; // State variable for the table
   final double _taxRate = 0.0825; // Example: 8.25% tax rate (Austin, TX) - make this configurable later
@@ -402,20 +398,15 @@ Widget build(BuildContext context) {
 
   return Scaffold(
     appBar: AppBar(
-      title: const Text('Label Scanner'),
+      title: const Text('LabelScan'), // Changed title
       actions: [
-         // Clear Button
+         // Clear Button (Kept)
          IconButton(
              icon: const Icon(Icons.delete_sweep),
              tooltip: 'Clear All Items',
              onPressed: _showClearConfirmationDialog,
          ),
-         // Logout Button
-        IconButton(
-          icon: const Icon(Icons.logout),
-          tooltip: 'Logout',
-          onPressed: _logout,
-        ),
+         // Logout Button (Removed)
       ],
     ),
     body: Stack( // Use Stack to overlay loading indicator

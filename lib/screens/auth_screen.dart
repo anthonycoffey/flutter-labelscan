@@ -145,6 +145,15 @@ class _AuthScreenState extends State<AuthScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
+                // Logo Placeholder
+                Padding( // Removed 'const'
+                  padding: const EdgeInsets.symmetric(vertical: 30.0),
+                  child: Icon(
+                    Icons.label_important, // Placeholder icon (replace with actual logo later)
+                    size: 80,
+                    color: Theme.of(context).colorScheme.primary, // Use theme's primary color
+                  ),
+                ),
                 if (_errorMessage != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 10.0),
