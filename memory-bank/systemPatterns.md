@@ -1,0 +1,54 @@
+# System Patterns: Flutter LabelScan
+
+## 1. Architecture Overview
+
+*   **Client-Server Architecture:** The system consists of a Flutter mobile application (client) and a Python Flask backend (server).
+*   The Flutter app handles the user interface, camera interaction, and communication with the backend.
+*   The Flask backend is responsible for processing images (OCR) and potentially other business logic.
+*   Communication occurs via a RESTful API.
+
+```mermaid
+graph TD
+    subgraph Flutter Client
+        UI[Screens (Auth, Home, Camera)] -- User Interaction --> SM(State Management - setState);
+        UI -- Triggers --> Cam[Camera/Image Picker];
+        SM -- Updates --> UI;
+        Cam -- Image Data --> API_Client[HTTP Client];
+        API_Client -- Request --> BE;
+        Auth[Firebase Auth/Google Sign-In] --> UI;
+        Store[Firebase Firestore/Storage] --> UI;
+    end
+
+    subgraph Flask Backend
+        BE[API Endpoint (/api/extract_data)] -- Receives Request --> OCR[Image Processing/OCR (Cloud Vision + Gemini)];
+        OCR -- Extracted Data --> BE;
+    end
+
+    BE -- Response --> API_Client;
+```
+
+## 2. Key Technical Decisions & Patterns
+
+*   **State Management:** `setState` is used within `StatefulWidget`s for managing local screen state. Simple, built-in approach suitable for less complex state needs.
+*   **Navigation:** Flutter's built-in imperative `Navigator` (`Navigator.push`, `Navigator.pop`) is used for screen transitions.
+*   **Data Handling:**
+    *   **Authentication:** Firebase Auth with Google Sign-In.
+    *   **Data Storage:** Cloud Firestore for structured data, Firebase Storage for image files (likely).
+    *   **API Communication:** `http` package used for making REST API calls to the Flask backend.
+    *   **Local Files:** `path_provider` used for accessing file system paths (potentially for temporary image storage).
+*   **Scanning/OCR:**
+    *   **Image Capture:** `camera` and `image_picker` packages used in the Flutter app.
+    *   **OCR Processing:** Handled by the Python Flask backend using Google Cloud Vision API for OCR and potentially Google Gemini API for intelligent data extraction from the image. The Flutter app sends the image to the backend.
+*   **Error Handling:** Standard enterprise-grade practices expected. In Flutter: Use `try-catch` blocks, provide user feedback via Snackbars/Dialogs for recoverable errors, log critical errors. In Flask: Centralized error handlers, return appropriate HTTP status codes (e.g., 4xx for client errors, 5xx for server errors), log exceptions.
+*   **Asynchronous Operations:** Standard Dart `async/await` syntax is used. `FutureBuilder` and `StreamBuilder` are employed for reacting to asynchronous data streams (e.g., camera initialization, auth state changes).
+
+## 3. Component Relationships
+
+*   **Auth Flow:** `AuthWrapper` likely listens to `FirebaseAuth.instance.authStateChanges()` stream. If logged in, shows `HomeScreen`; otherwise, shows `AuthScreen`.
+*   **Scanning Flow:** `HomeScreen` likely navigates to `CameraScreen`. `CameraScreen` captures an image using the `camera` package, potentially saves it temporarily using `path_provider`, sends it to the Flask backend via `http`, receives the extracted price, and returns the result (or the image path) back to `HomeScreen` using `Navigator.pop`. `HomeScreen` updates the running total.
+*   (*Further details require deeper code analysis.*)
+
+## 4. Critical Implementation Paths
+
+*   **Authentication:** User opens app -> `AuthWrapper` checks auth state -> Redirects to `AuthScreen` -> User signs in (e.g., Google) -> Firebase Auth confirms -> `AuthWrapper` redirects to `HomeScreen`.
+*   **Price Scanning:** User on `HomeScreen` taps 'Scan' -> Navigates to `CameraScreen` -> User captures image -> Image sent to Flask backend API -> Backend performs OCR, returns price -> Price received by `CameraScreen` -> `Navigator.pop` returns price to `HomeScreen` -> `HomeScreen` updates total.
