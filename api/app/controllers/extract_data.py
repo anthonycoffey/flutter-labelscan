@@ -93,6 +93,7 @@ def extract_data():
 
     try:
       extracted_data = json.loads(response_text)
+      print(extracted_data)
     except json.JSONDecodeError as e:
       print(e)
       return jsonify({"status": "error", "message": "Failed to parse JSON response"}), 500
