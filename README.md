@@ -98,6 +98,6 @@ Made with ❤️ using Flutter and Python
 
 --- 
 
-## 🖼️ Diagram
+## 🖼️ Architecture Diagram
 
 ![Architecture Diagram](diagram.svg)
