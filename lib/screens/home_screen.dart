@@ -118,11 +118,36 @@ class _HomeScreenState extends State<HomeScreen> {
 
 
         if (response.statusCode == 200) {
-            final data = jsonDecode(response.body);
-            // Ensure data extraction is safe
-            final description = data?['data']?['description']?.toString() ?? 'No description';
-            final amount = data?['data']?['amount']; // Keep amount dynamic for now
-            await _showConfirmationDialog(description, amount);
+          try { // Add nested try for processing successful response
+            final decodedBody = jsonDecode(response.body);
+            // Check if 'data' exists, is a non-empty list, and the first element is a Map
+            if (decodedBody != null &&
+                decodedBody['data'] is List &&
+                (decodedBody['data'] as List).isNotEmpty &&
+                decodedBody['data'][0] is Map) { // Added check for Map type
+              final data = decodedBody['data'][0] as Map; // Cast to Map for safety
+              // Ensure data extraction is safe
+              final description = data['description']?.toString() ?? 'No description'; // Access directly now
+              final amount = data['amount']; // Access directly now
+              await _showConfirmationDialog(description, amount);
+            } else {
+              // Handle cases where 'data' is missing, not a list, empty, or first element isn't a Map
+              debugPrint("API Error: Unexpected response format. Expected 'data' as non-empty List<Map>. Body: ${response.body}");
+              ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Error: Received unexpected data format from server.'))
+              );
+            }
+          } catch (e) { // Add nested catch for errors during processing
+            debugPrint("Error processing successful API response (status 200): $e. Body: ${response.body}");
+            // Show a more specific error message
+            String errorSummary = e.toString().split('\n').first; // Get first line of error
+             if (errorSummary.length > 100) { // Limit length
+               errorSummary = '${errorSummary.substring(0, 97)}...';
+             }
+            ScaffoldMessenger.of(context).showSnackBar(
+               SnackBar(content: Text('Error processing server response: $errorSummary'))
+            );
+          }
         } else {
             // Handle API errors (non-200 status)
             debugPrint("API Error: ${response.statusCode} - ${response.body}");
@@ -137,10 +162,10 @@ class _HomeScreenState extends State<HomeScreen> {
             );
         }
     } catch (e) {
-        // Handle network or other errors during API call
-        debugPrint("Error uploading/processing image: $e");
+        // Outer catch: Handle network errors or errors during the request sending phase
+        debugPrint("Error during image upload/API request: $e"); // Clarify scope
         ScaffoldMessenger.of(context).showSnackBar(
-           const SnackBar(content: Text('Network error or server issue. Please try again.'))
+           const SnackBar(content: Text('Network error or server issue. Please try again.')) // Keep this generic for network issues
         );
     } finally {
         setState(() { _isProcessing = false; });
@@ -151,26 +176,41 @@ class _HomeScreenState extends State<HomeScreen> {
 
 
   Future<void> _showConfirmationDialog(String description, dynamic amount) async {
-    int priceInCents;
-    // Ensure amount is treated as int (it might be String or int from JSON)
-    if (amount is String) {
-        priceInCents = int.tryParse(amount) ?? 0;
+    int? priceInCents; // Make nullable to handle N/A case
+    String displayPrice = "N/A";
+    bool canConfirm = false; // Control confirm button state
+
+    // Check for "N/A" first
+    if (amount is String && amount.toUpperCase() == "N/A") {
+        debugPrint("Price is N/A for item: $description");
+        displayPrice = "N/A - Not Found";
+        priceInCents = null; // Explicitly null for N/A
+        canConfirm = false;
+    } else if (amount is String) {
+        priceInCents = int.tryParse(amount);
     } else if (amount is int) {
         priceInCents = amount;
     } else if (amount is double) {
-        priceInCents = amount.round(); // Handle potential decimals if API changes
-    } else {
-        debugPrint("Error: Invalid amount type received: ${amount.runtimeType}, value: $amount");
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Received invalid price data.'))
-        );
-        return;
+        priceInCents = amount.round(); // Handle potential decimals
     }
 
-
-    // Format price for display in dialog
-    final displayPrice = NumberFormat.currency(locale: 'en_US', symbol: '\$')
-                                .format(priceInCents / 100.0);
+    // If parsing failed or type was invalid (and not N/A)
+    if (priceInCents == null && !(amount is String && amount.toUpperCase() == "N/A")) {
+        debugPrint("Error: Invalid or unparsable amount received: ${amount.runtimeType}, value: $amount");
+        displayPrice = "Invalid Price";
+        priceInCents = null; // Ensure it's null
+        canConfirm = false;
+         ScaffoldMessenger.of(context).showSnackBar(
+             const SnackBar(content: Text('Received invalid price data.'))
+         );
+         // Optionally return early if you don't want to show the dialog for invalid data
+         // return;
+    } else if (priceInCents != null) {
+        // Format valid price for display
+        displayPrice = NumberFormat.currency(locale: 'en_US', symbol: '\$')
+                                    .format(priceInCents / 100.0);
+        canConfirm = true; // Allow confirmation only if price is valid
+    }
 
     return showDialog<void>(
       context: context,
@@ -194,11 +234,14 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
             TextButton(
-              child: const Text('Confirm'),
-              onPressed: () {
-                _addItemToTable(description, priceInCents);
+              // Disable confirm button if price is N/A or invalid
+              onPressed: canConfirm ? () {
+                if (priceInCents != null) { // Double check price isn't null
+                  _addItemToTable(description, priceInCents);
+                }
                 Navigator.of(context).pop(); // Close dialog
-              },
+              } : null, // Set onPressed to null to disable
+              child: const Text('Confirm'),
             ),
           ],
         );
