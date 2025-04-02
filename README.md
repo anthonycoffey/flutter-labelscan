@@ -86,16 +86,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 4. Push to the Branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📞 Contact
-
-Project Link: [https://github.com/anthonycoffey/flutter-labelscan](https://github.com/anthonycoffey/flutter-labelscan)
-
-Author: [Anthony Coffey](https://coffey.codes/)
-
----
-
-Made with ❤️ using Flutter and Python
-
 --- 
 
 ## 🖼️ Architecture Diagram
@@ -119,3 +109,13 @@ graph TD
 
     BE -- Response --> API_Client;
 ```
+
+## 📞 Contact
+
+Project Link: [https://github.com/anthonycoffey/flutter-labelscan](https://github.com/anthonycoffey/flutter-labelscan)
+
+Author: [Anthony Coffey](https://coffey.codes/)
+
+---
+
+Made with ❤️ using Flutter and Python
