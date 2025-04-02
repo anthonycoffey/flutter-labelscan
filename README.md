@@ -12,7 +12,7 @@ Flutter LabelScan is a mobile application that helps shoppers keep track of thei
 ## ✨ Features
 
 - **Real-time Price Scanning**: Use your camera to scan price labels on products
-- **OCR Technology**: Automatically extracts price data from scanned labels
+- **AI-powered OCR Technology**: Automatically extracts price data from scanned labels using Google Vision & Gemini API
 - **Running Totals**: Keeps track of subtotal as you shop
 - **Tax Calculation**: Automatically calculates taxes based on your location
 - **Shopping History**: Save and review past shopping trips
@@ -58,9 +58,8 @@ Flutter LabelScan is a mobile application that helps shoppers keep track of thei
 ## 🛠️ Technologies Used
 
 - **Frontend**: Flutter, Dart
-- **Backend**: Python, Flask
-- **Image Processing**: OpenCV, TensorFlow Lite
-- **OCR (Optical Character Recognition)**: Google ML Kit / Tesseract
+- **Backend**: Python, Flask, Firebase, Cloud Storage
+- **Image Processing / OCR**: Google Vision & Gemini API
 
 ## 📊 Architecture
 
