@@ -103,7 +103,6 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Account'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: SingleChildScrollView( // Allow scrolling if content overflows
         padding: const EdgeInsets.all(20.0),
