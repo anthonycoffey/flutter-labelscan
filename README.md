@@ -86,8 +86,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 4. Push to the Branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
---- 
-
 ## 🖼️ Architecture Diagram
 
 ```mermaid
@@ -116,6 +114,5 @@ Project Link: [https://github.com/anthonycoffey/flutter-labelscan](https://githu
 
 Author: [Anthony Coffey](https://coffey.codes/)
 
----
 
 Made with ❤️ using Flutter and Python
