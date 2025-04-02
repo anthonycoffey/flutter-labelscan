@@ -34,8 +34,8 @@ class _MainScreenState extends State<MainScreen> {
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: Icon(Icons.label_important_outline), // Or document_scanner
-            label: 'Label Scan',
+            icon: Icon(Icons.qr_code_scanner), // Use QR code icon
+            label: 'Scan Label',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
