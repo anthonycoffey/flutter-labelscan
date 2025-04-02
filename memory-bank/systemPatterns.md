@@ -20,7 +20,7 @@ graph TD
     end
 
     subgraph Flask Backend
-        BE["API Endpoint (e.g., /extract_data)"] -- Receives Request --> OCR["Image Processing/OCR (Gemini)"];
+        BE["API Endpoint (/api/extract_data)"] -- Receives Request --> OCR["Image Processing/OCR (Cloud Vision & Gemini API)"];
         OCR -- Extracted Data --> BE;
     end
 

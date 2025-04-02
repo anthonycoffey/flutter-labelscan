@@ -100,4 +100,22 @@ Made with ❤️ using Flutter and Python
 
 ## 🖼️ Architecture Diagram
 
-![Architecture Diagram](diagram.svg)
+```mermaid
+graph TD
+    subgraph Flutter Client
+        UI["Screens (Auth, Home, Camera)"] -- User Interaction --> SM(State Management - setState);
+        UI -- Triggers --> Cam[Camera/Image Picker];
+        SM -- Updates --> UI;
+        Cam -- Image Data --> API_Client[HTTP Client];
+        API_Client -- Request --> BE;
+        Auth[Firebase Auth/Google Sign-In] --> UI;
+        Store[Firebase Firestore/Storage] --> UI;
+    end
+
+    subgraph Flask Backend
+        BE["API Endpoint (/api/extract_data)"] -- Receives Request --> OCR["Image Processing/OCR (Cloud Vision & Gemini API)"];
+        OCR -- Extracted Data --> BE;
+    end
+
+    BE -- Response --> API_Client;
+```
