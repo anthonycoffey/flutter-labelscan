@@ -10,7 +10,7 @@
 ```mermaid
 graph TD
     subgraph Flutter Client
-        UI[Screens (Auth, Home, Camera)] -- User Interaction --> SM(State Management - setState);
+        UI["Screens (Auth, Home, Camera)"] -- User Interaction --> SM(State Management - setState);
         UI -- Triggers --> Cam[Camera/Image Picker];
         SM -- Updates --> UI;
         Cam -- Image Data --> API_Client[HTTP Client];
@@ -20,7 +20,7 @@ graph TD
     end
 
     subgraph Flask Backend
-        BE[API Endpoint (/api/extract_data)] -- Receives Request --> OCR[Image Processing/OCR (Cloud Vision + Gemini)];
+        BE["API Endpoint (e.g., /extract_data)"] -- Receives Request --> OCR["Image Processing/OCR (Gemini)"];
         OCR -- Extracted Data --> BE;
     end
 
