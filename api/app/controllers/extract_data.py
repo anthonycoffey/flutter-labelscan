@@ -1,7 +1,7 @@
 from flask import request, jsonify
 from google import genai
 from datetime import datetime
-from app.services.firebase_service import upload_file_to_firebase
+from app.services.firebase_service import upload_file_to_firebase, delete_file_from_firebase
 from google.cloud import vision
 from google.genai import types
 from flask import current_app
@@ -10,7 +10,9 @@ import json
 import asyncio
 
 def extract_data():
-  
+  unique_filename = None  # Initialize unique_filename
+  bucket_name = 'flutter-labelscan.firebasestorage.app' # Define bucket_name early
+
   if request.method == "OPTIONS":
     return "", 204
 
@@ -27,8 +29,10 @@ def extract_data():
     return jsonify({"status": "error", "message": f"Invalid file type: {file.content_type}. Expected an image."}), 400
 
   timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-  unique_filename = f"{timestamp}_{file.filename}"
-  bucket_name = 'flutter-labelscan.firebasestorage.app'
+  original_filename = file.filename # Keep original filename for deletion if needed
+  unique_filename = f"{timestamp}_{original_filename}"
+  # Note: upload_file_to_firebase might modify unique_filename if there's a collision,
+  # but we'll use the returned name for deletion.
   unique_filename = upload_file_to_firebase(file.stream, file.content_type, unique_filename, bucket_name)
 
   client = vision.ImageAnnotatorClient()
@@ -103,6 +107,14 @@ def extract_data():
   except Exception as e:
     print(e)
     return jsonify({"status": "error", "message": str(e)}), 500
-  
+  finally:
+    # Ensure the file is deleted from Firebase Storage after processing
+    if unique_filename:
+      try:
+        delete_file_from_firebase(bucket_name, unique_filename)
+        current_app.logger.info(f"Cleaned up file: {unique_filename}")
+      except Exception as delete_error:
+        # Log deletion error but don't fail the request
+        current_app.logger.error(f"Failed to delete file {unique_filename}: {str(delete_error)}")
 
   return jsonify({'data': extracted_data})
