@@ -8,7 +8,8 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart'; // For MediaType
 import 'package:mime/mime.dart'; // Import the mime package
 import 'package:intl/intl.dart'; // For currency formatting
-import 'package:flutter_labelscan/models/scanned_item.dart'; // Create this model later
+import 'package:flutter_labelscan/models/scanned_item.dart';
+import 'package:flutter_slidable/flutter_slidable.dart'; // Import Slidable
 
 
 class HomeScreen extends StatefulWidget {
@@ -258,6 +259,99 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  // --- Delete Item ---
+  void _deleteItem(int index) {
+    setState(() {
+      _scannedItems.removeAt(index);
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Item deleted')),
+    );
+  }
+
+  // --- Edit Item ---
+  void _editItem(int index, String newDescription, int newPriceInCents) {
+    setState(() {
+      _scannedItems[index] = ScannedItem(
+        description: newDescription,
+        priceInCents: newPriceInCents,
+      );
+    });
+  }
+
+  Future<void> _showEditItemDialog(int index) async {
+    final ScannedItem currentItem = _scannedItems[index];
+    final descriptionController = TextEditingController(text: currentItem.description);
+    // Convert cents to dollars string for the text field
+    final priceController = TextEditingController(text: (currentItem.priceInCents / 100.0).toStringAsFixed(2));
+    final formKey = GlobalKey<FormState>(); // For validation
+
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // User must tap button
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Edit Item'),
+          content: Form( // Use a Form for validation
+            key: formKey,
+            child: SingleChildScrollView(
+              child: ListBody(
+                children: <Widget>[
+                  TextFormField(
+                    controller: descriptionController,
+                    decoration: const InputDecoration(labelText: 'Description'),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter a description';
+                      }
+                      return null;
+                    },
+                  ),
+                  TextFormField(
+                    controller: priceController,
+                    decoration: const InputDecoration(labelText: 'Price (\$)'),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter a price';
+                      }
+                      final price = double.tryParse(value);
+                      if (price == null || price < 0) {
+                        return 'Please enter a valid positive price';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog
+              },
+            ),
+            TextButton(
+              child: const Text('Save'),
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  final newDescription = descriptionController.text.trim();
+                  // Convert dollars string back to cents integer
+                  final newPriceInCents = (double.parse(priceController.text) * 100).round();
+                  _editItem(index, newDescription, newPriceInCents);
+                  Navigator.of(context).pop(); // Close dialog
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+
   // Calculation methods
   int get _subtotalCents => _scannedItems.fold(0, (sum, item) => sum + item.priceInCents);
   int get _taxCents => (_subtotalCents * _taxRate).round();
@@ -301,7 +395,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
 @override
 Widget build(BuildContext context) {
-   // Calculate totals
+   // Calculate totals FIRST
    final subtotal = _subtotalCents;
    final taxes = _taxCents;
    final total = _totalCents;
@@ -328,57 +422,95 @@ Widget build(BuildContext context) {
        children: [
           Column(
              children: <Widget>[
-                Expanded( // Make DataTable scrollable
-                   child: _scannedItems.isEmpty
+                Expanded( // Make ListView scrollable
+                  child: _scannedItems.isEmpty
                       ? const Center(child: Text('Scan your first label!'))
-                      : SingleChildScrollView( // Essential for DataTable
-                           child: Padding(
-                             padding: const EdgeInsets.all(8.0),
-                             child: DataTable(
-                                columns: const <DataColumn>[
-                                   DataColumn(label: Text('Description')),
-                                   DataColumn(label: Text('Price'), numeric: true),
+                      : ListView.builder(
+                          itemCount: _scannedItems.length,
+                          itemBuilder: (context, index) {
+                            final item = _scannedItems[index];
+                            return Slidable(
+                              key: ValueKey(item), // Unique key for each item
+                              // Define the start action pane (e.g., for Edit)
+                              startActionPane: ActionPane(
+                                motion: const ScrollMotion(), // Or BehindMotion, StretchMotion, etc.
+                                children: [
+                                  SlidableAction(
+                                    onPressed: (context) => _showEditItemDialog(index),
+                                    backgroundColor: Colors.blue,
+                                    foregroundColor: Colors.white,
+                                    icon: Icons.edit,
+                                    label: 'Edit',
+                                  ),
                                 ],
-                                rows: [
-                                   // Item Rows
-                                   ..._scannedItems.map((item) => DataRow(
-                                      cells: <DataCell>[
-                                         DataCell(Text(item.description)),
-                                         DataCell(Text(item.priceFormatted)),
-                                      ],
-                                   )),
-
-                                   // --- Totals Rows ---
-                                   // Subtotal Row (using DataRow for alignment)
-                                    DataRow(
-                                        cells: <DataCell>[
-                                            DataCell(const Text('Subtotal', style: TextStyle(fontWeight: FontWeight.bold))),
-                                            DataCell(Text(_formatCents(subtotal), style: const TextStyle(fontWeight: FontWeight.bold))),
-                                        ]
-                                    ),
-                                   // Tax Row
-                                    DataRow(
-                                        cells: <DataCell>[
-                                            DataCell(Text('Tax (${NumberFormat.percentPattern().format(_taxRate)})')),
-                                            DataCell(Text(_formatCents(taxes))),
-                                        ]
-                                    ),
-                                   // Total Row
-                                    DataRow(
-                                        cells: <DataCell>[
-                                            DataCell(const Text('Total', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-                                            DataCell(Text(_formatCents(total), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-                                        ]
-                                    ),
+                              ),
+                              // Define the end action pane (e.g., for Delete)
+                              endActionPane: ActionPane(
+                                motion: const ScrollMotion(),
+                                dismissible: DismissiblePane(onDismissed: () {
+                                  _deleteItem(index);
+                                }),
+                                children: [
+                                  SlidableAction(
+                                    onPressed: (context) => _deleteItem(index), // Add onPressed back
+                                    backgroundColor: Colors.red,
+                                    foregroundColor: Colors.white,
+                                    icon: Icons.delete,
+                                    label: 'Delete',
+                                  ),
                                 ],
-                             ),
-                           ),
+                              ),
+                              // The child of the Slidable is the actual list item content
+                              child: ListTile(
+                                title: Text(item.description),
+                                trailing: Text(item.priceFormatted),
+                              ),
+                            );
+                          },
                         ),
-                ),
-                // Leave space for the Floating Action Button
+                ), // End of Expanded
+
+                // --- Totals Section (Moved INSIDE Column children) ---
+                if (_scannedItems.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0), // Adjust padding
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Divider(),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Subtotal', style: TextStyle(fontWeight: FontWeight.bold)),
+                            Text(_formatCents(subtotal), style: const TextStyle(fontWeight: FontWeight.bold)), // Use calculated subtotal
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Tax (${NumberFormat.percentPattern().format(_taxRate)})'),
+                            Text(_formatCents(taxes)), // Use calculated taxes
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Total', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            Text(_formatCents(total), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)), // Use calculated total
+                          ],
+                        ),
+                      ],
+                    ),
+                  ), // End of Totals Padding
+
+                // Leave space for the Floating Action Button (ensure it's the last item before Column closes)
                 const SizedBox(height: 80),
-             ],
-          ),
+
+              ], // End of Column children
+            ), // End of Column
           // Loading Indicator Overlay
           if (_isProcessing)
              Container(

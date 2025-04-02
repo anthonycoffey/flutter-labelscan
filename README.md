@@ -97,3 +97,8 @@ Author: [Anthony Coffey](https://coffey.codes/)
 
 Made with ❤️ using Flutter and Python
 
+--- 
+
+## 🖼️ Diagram
+
+![Architecture Diagram](diagram.svg)
