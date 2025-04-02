@@ -58,7 +58,7 @@ Flutter LabelScan is a mobile application that helps shoppers keep track of thei
 ## 🛠️ Technologies Used
 
 - **Frontend**: Flutter, Dart
-- **Backend**: Python, Flask, Firebase, Cloud Storage
+- **Backend**: Python, Flask, Cloud Run, Firebase, Cloud Storage
 - **Image Processing / OCR**: Google Vision & Gemini API
 
 ## 📊 Architecture
