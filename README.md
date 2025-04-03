@@ -55,6 +55,13 @@ Flutter LabelScan is a mobile application that helps shoppers keep track of thei
    flutter run
    ```
 
+## 🔧 Build the app
+
+1. Run the following command to build the APK for Android:
+    ```bash
+    flutter build apk
+    ```
+
 ## 🛠️ Technologies Used
 
 - **Frontend**: Flutter, Dart
