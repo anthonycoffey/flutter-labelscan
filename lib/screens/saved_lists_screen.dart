@@ -5,6 +5,7 @@ import 'package:flutter_slidable/flutter_slidable.dart'; // For swipe-to-delete
 import 'package:intl/intl.dart'; // For date and currency formatting
 
 import '../services/firestore_service.dart'; // Import the service
+import 'list_details_screen.dart'; // Import the new details screen
 
 // Provider to stream the saved lists
 final savedListsStreamProvider = StreamProvider<QuerySnapshot>((ref) {
@@ -64,9 +65,36 @@ class SavedListsScreen extends ConsumerWidget {
               final timestamp = data?['createdAt'] as Timestamp?;
               final itemsList = data?['items'] as List<dynamic>? ?? [];
               final itemCount = itemsList.length;
+              // Ensure itemsList is correctly typed for navigation
+              final List<Map<String, dynamic>> typedItemsList = List<Map<String, dynamic>>.from(itemsList);
+
 
               return Slidable(
                 key: ValueKey(listId), // Unique key for Slidable
+                // Add Start Action Pane for "View"
+                startActionPane: ActionPane(
+                  motion: const ScrollMotion(),
+                  children: [
+                    SlidableAction(
+                      onPressed: (context) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ListDetailsScreen(
+                              items: typedItemsList, // Pass the correctly typed list
+                              timestamp: timestamp,
+                              totalCents: totalCents,
+                            ),
+                          ),
+                        );
+                      },
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      icon: Icons.visibility,
+                      label: 'View',
+                    ),
+                  ],
+                ),
                 endActionPane: ActionPane(
                   motion: const ScrollMotion(),
                   dismissible: DismissiblePane(onDismissed: () {
