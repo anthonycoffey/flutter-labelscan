@@ -96,15 +96,34 @@ class HomeScreen extends ConsumerWidget {
                         },
                       ),
               ),
-              // Totals Section
-              if (homeState.scannedItems.isNotEmpty)
-                _TotalsDisplay(
-                  subtotalCents: homeState.subtotalCents,
-                  taxCents: homeState.taxCents,
-                  totalCents: homeState.totalCents,
-                  taxRate: homeState.taxRate,
-                  formatCents: homeState.formatCents, // Pass formatter
+              // Collapsible Totals Section
+              if (homeState.scannedItems.isNotEmpty) ...[
+                const Divider(height: 1, indent: 16, endIndent: 16), // Divider before totals
+                ExpansionTile(
+                  title: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Totals', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text(
+                        homeState.formatCents(homeState.totalCents),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                    ],
+                  ),
+                  tilePadding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  childrenPadding: EdgeInsets.zero, // _TotalsDisplay handles its padding
+                  initiallyExpanded: false,
+                  children: <Widget>[
+                    _TotalsDisplay(
+                      subtotalCents: homeState.subtotalCents,
+                      taxCents: homeState.taxCents,
+                      // totalCents: homeState.totalCents, // Removed, shown in title
+                      taxRate: homeState.taxRate,
+                      formatCents: homeState.formatCents,
+                    ),
+                  ],
                 ),
+              ],
               // Leave space for the Floating Action Button
               const SizedBox(height: 80),
             ],
@@ -327,14 +346,14 @@ class _ScannedItemsListView extends StatelessWidget {
 class _TotalsDisplay extends StatelessWidget {
   final int subtotalCents;
   final int taxCents;
-  final int totalCents;
+  // final int totalCents; // Removed - now shown in ExpansionTile title
   final double taxRate;
   final String Function(int) formatCents; // Receive formatter function
 
   const _TotalsDisplay({
     required this.subtotalCents,
     required this.taxCents,
-    required this.totalCents,
+    // required this.totalCents, // Removed
     required this.taxRate,
     required this.formatCents,
   });
@@ -363,14 +382,8 @@ class _TotalsDisplay extends StatelessWidget {
               Text(formatCents(taxCents)),
             ],
           ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Total', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              Text(formatCents(totalCents), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            ],
-          ),
+          // const SizedBox(height: 8), // Removed SizedBox before total
+          // Row for Total removed - now shown in ExpansionTile title
         ],
       ),
     );
