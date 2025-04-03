@@ -1,0 +1,13 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Target the specific path for user lists directly
+    match /users/{userId}/lists/{listId} {
+      // Allow listing the collection and reading/creating/deleting documents
+      // ONLY if the requesting user is the authenticated owner of this user path.
+      allow list, read, create, update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+    // All other paths are implicitly denied by default if no rule allows access.
+  }
+}
