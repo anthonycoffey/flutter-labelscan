@@ -4,7 +4,8 @@ import 'package:intl/intl.dart'; // For formatting
 
 import '../models/scanned_item.dart'; // Assuming ScannedItem model exists
 
-class ListDetailsScreen extends StatelessWidget {
+// Convert to StatefulWidget
+class ListDetailsScreen extends StatefulWidget {
   final List<Map<String, dynamic>> items; // Use Map for flexibility initially
   final Timestamp? timestamp;
   final int totalCents;
@@ -15,6 +16,40 @@ class ListDetailsScreen extends StatelessWidget {
     required this.timestamp,
     required this.totalCents,
   });
+
+  @override
+  State<ListDetailsScreen> createState() => _ListDetailsScreenState();
+}
+
+class _ListDetailsScreenState extends State<ListDetailsScreen> {
+  // Store the parsed items in the state
+  List<ScannedItem> _scannedItems = [];
+
+  @override
+  void initState() {
+    super.initState();
+    // Perform conversion once in initState
+    _parseItems();
+  }
+
+  void _parseItems() {
+    List<ScannedItem> parsed = [];
+    for (var itemMap in widget.items) { // Access items via widget.items
+      try {
+        // Use the correct factory constructor from ScannedItem model
+        parsed.add(ScannedItem.fromJson(itemMap));
+      } catch (e) {
+        print("Error parsing item in ListDetailsScreen: $e");
+        // Optionally add a placeholder or skip the item
+      }
+    }
+    // Update the state variable
+    // Use setState only if needed after async operations, but here it's synchronous
+    // within initState, so direct assignment before build is fine.
+    // If parsing were async, you'd use setState(() { _scannedItems = parsed; });
+     _scannedItems = parsed; // Direct assignment is okay here before first build
+  }
+
 
   // Helper to format cents to currency string (copied from SavedListsScreen)
   String _formatCents(int cents) {
@@ -30,36 +65,27 @@ class ListDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Attempt to parse items into ScannedItem objects
-    List<ScannedItem> scannedItems = [];
-    for (var itemMap in items) {
-      try {
-        // Use the correct factory constructor from ScannedItem model
-        scannedItems.add(ScannedItem.fromJson(itemMap));
-      } catch (e) {
-        print("Error parsing item in ListDetailsScreen: $e");
-        // Optionally add a placeholder or skip the item
-      }
-    }
+    // Now use the state variable _scannedItems which is parsed only once
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('List from ${_formatTimestamp(timestamp)}'),
+        // Access timestamp and totalCents via widget.
+        title: Text('List from ${_formatTimestamp(widget.timestamp)}'),
       ),
       body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
-              'Total: ${_formatCents(totalCents)}',
+              'Total: ${_formatCents(widget.totalCents)}', // Access via widget.
               style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
           ),
           Expanded(
             child: ListView.builder(
-              itemCount: scannedItems.length,
+              itemCount: _scannedItems.length, // Use state variable
               itemBuilder: (context, index) {
-                final item = scannedItems[index];
+                final item = _scannedItems[index]; // Use state variable
                 // Use the correct fields from ScannedItem model
                 return ListTile(
                   title: Text(item.description), // Use description as the main text
