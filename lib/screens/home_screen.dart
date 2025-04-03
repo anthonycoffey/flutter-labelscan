@@ -12,12 +12,13 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Watch the state and listen for errors
+    // Watch the state and listen for errors/state changes
     final homeState = ref.watch(homeControllerProvider);
     final homeController = ref.read(homeControllerProvider.notifier);
 
-    // Listen for errors and show SnackBars
+    // Listen for general processing errors and show SnackBars
     ref.listen<HomeState>(homeControllerProvider, (previous, next) {
+      // Show general processing error
       if (next.error != null && next.error != previous?.error) {
         String errorMessage = "An unknown error occurred.";
         if (next.error is ApiException) {
@@ -36,6 +37,20 @@ class HomeScreen extends ConsumerWidget {
            // Optionally clear the error after showing it
            // Future.microtask(() => homeController.clearError());
         }
+      }
+
+      // Show save error
+      if (next.saveError != null && next.saveError != previous?.saveError) {
+         if (context.mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(
+             SnackBar(
+               content: Text("Error saving list: ${next.saveError.toString()}"),
+               backgroundColor: Colors.redAccent,
+             ),
+           );
+           // Optionally clear the save error after showing it
+           // Future.microtask(() => homeController.clearSaveError()); // Need to add clearSaveError to controller if desired
+         }
       }
     });
 
@@ -67,11 +82,38 @@ class HomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('LabelScan'),
         actions: [
+          // Save Button
+          IconButton(
+            icon: homeState.isSaving
+                ? const SizedBox( // Show progress indicator when saving
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2.0, color: Colors.white),
+                  )
+                : const Icon(Icons.save_alt), // Show save icon otherwise
+            tooltip: 'Save List',
+            // Disable if list is empty or currently saving
+            onPressed: homeState.scannedItems.isEmpty || homeState.isSaving
+                ? null
+                : () async {
+                    final success = await homeController.saveCurrentList();
+                    if (success && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('List saved successfully!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                    // Error SnackBar is handled by the listener above
+                  },
+          ),
+          // Clear Button
           IconButton(
             icon: const Icon(Icons.delete_sweep),
             tooltip: 'Clear All Items',
-            // Disable button if list is empty or processing
-            onPressed: homeState.scannedItems.isEmpty || homeState.isProcessing
+            // Disable button if list is empty or processing/saving
+            onPressed: homeState.scannedItems.isEmpty || homeState.isProcessing || homeState.isSaving
                 ? null
                 : () => _showClearConfirmationDialog(context, homeController),
           ),
@@ -84,10 +126,13 @@ class HomeScreen extends ConsumerWidget {
               Expanded(
                 child: homeState.scannedItems.isEmpty
                     ? const Center(child: Text('Scan or upload your first label!'))
-                    : _ScannedItemsListView(
+                    : _ScannedItemsListView( // Pass isSaving state here
                         items: homeState.scannedItems,
+                        isSaving: homeState.isSaving,
                         onEdit: (index) => _showEditItemDialog(context, ref, index),
                         onDelete: (index) {
+                          // Disable delete if saving (already handled in SlidableAction onPressed)
+                          // if (homeState.isSaving) return; // Redundant check
                           homeController.deleteItem(index);
                           // Show confirmation SnackBar after delete
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -117,7 +162,6 @@ class HomeScreen extends ConsumerWidget {
                     _TotalsDisplay(
                       subtotalCents: homeState.subtotalCents,
                       taxCents: homeState.taxCents,
-                      // totalCents: homeState.totalCents, // Removed, shown in title
                       taxRate: homeState.taxRate,
                       formatCents: homeState.formatCents,
                     ),
@@ -128,13 +172,17 @@ class HomeScreen extends ConsumerWidget {
               const SizedBox(height: 80),
             ],
           ),
-          // Loading Indicator Overlay
+          // Loading Indicator Overlay for image processing
           if (homeState.isProcessing)
             _LoadingOverlay(message: homeState.processingMessage),
+          // Could add a saving overlay too if desired, but button indicator might be enough
+          // if (homeState.isSaving)
+          //   _LoadingOverlay(message: "Saving..."),
         ],
       ),
       floatingActionButton: _ActionButtons(
-        isProcessing: homeState.isProcessing,
+        // Disable scan/upload if saving
+        isProcessing: homeState.isProcessing || homeState.isSaving,
         onScan: () => homeController.scanLabel(context), // Pass context
         onUpload: () => homeController.pickImageFromGallery(context), // Pass context
       ),
@@ -172,7 +220,10 @@ class HomeScreen extends ConsumerWidget {
 
   Future<void> _showEditItemDialog(BuildContext context, WidgetRef ref, int index) async {
     // Access the current state via ref.read since this is triggered by an action
-    final currentItem = ref.read(homeControllerProvider).scannedItems[index];
+    final homeState = ref.read(homeControllerProvider); // Read state for isSaving check
+    if (homeState.isSaving) return; // Prevent editing while saving
+
+    final currentItem = homeState.scannedItems[index];
     final controller = ref.read(homeControllerProvider.notifier);
 
     final descriptionController = TextEditingController(text: currentItem.description);
@@ -290,15 +341,20 @@ class _ScannedItemsListView extends StatelessWidget {
   final List<ScannedItem> items;
   final Function(int) onEdit;
   final Function(int) onDelete;
+  final bool isSaving; // Add isSaving parameter
 
   const _ScannedItemsListView({
     required this.items,
     required this.onEdit,
     required this.onDelete,
+    required this.isSaving, // Require isSaving
   });
 
   @override
   Widget build(BuildContext context) {
+    // Use the passed 'isSaving' parameter directly
+    // final isSaving = context.read(homeControllerProvider).isSaving; // Incorrect usage removed
+
     return Scrollbar(
       thumbVisibility: true,
       child: ListView.builder(
@@ -306,13 +362,14 @@ class _ScannedItemsListView extends StatelessWidget {
         itemBuilder: (context, index) {
           final item = items[index];
           return Slidable(
-            key: ValueKey(item.hashCode), // Use a unique key, hashCode might work if items are immutable enough
+            key: ValueKey(item.hashCode), // Use a unique key
             startActionPane: ActionPane(
               motion: const ScrollMotion(),
+              // Disable edit action while saving
               children: [
                 SlidableAction(
-                  onPressed: (context) => onEdit(index),
-                  backgroundColor: Colors.blue,
+                  onPressed: isSaving ? null : (context) => onEdit(index),
+                  backgroundColor: isSaving ? Colors.grey : Colors.blue,
                   foregroundColor: Colors.white,
                   icon: Icons.edit,
                   label: 'Edit',
@@ -321,11 +378,12 @@ class _ScannedItemsListView extends StatelessWidget {
             ),
             endActionPane: ActionPane(
               motion: const ScrollMotion(),
-              dismissible: DismissiblePane(onDismissed: () => onDelete(index)),
+              // Disable delete action while saving
+              dismissible: isSaving ? null : DismissiblePane(onDismissed: () => onDelete(index)),
               children: [
                 SlidableAction(
-                  onPressed: (context) => onDelete(index),
-                  backgroundColor: Colors.red,
+                  onPressed: isSaving ? null : (context) => onDelete(index),
+                  backgroundColor: isSaving ? Colors.grey : Colors.red,
                   foregroundColor: Colors.white,
                   icon: Icons.delete,
                   label: 'Delete',
@@ -346,14 +404,12 @@ class _ScannedItemsListView extends StatelessWidget {
 class _TotalsDisplay extends StatelessWidget {
   final int subtotalCents;
   final int taxCents;
-  // final int totalCents; // Removed - now shown in ExpansionTile title
   final double taxRate;
   final String Function(int) formatCents; // Receive formatter function
 
   const _TotalsDisplay({
     required this.subtotalCents,
     required this.taxCents,
-    // required this.totalCents, // Removed
     required this.taxRate,
     required this.formatCents,
   });
@@ -382,8 +438,6 @@ class _TotalsDisplay extends StatelessWidget {
               Text(formatCents(taxCents)),
             ],
           ),
-          // const SizedBox(height: 8), // Removed SizedBox before total
-          // Row for Total removed - now shown in ExpansionTile title
         ],
       ),
     );
@@ -391,7 +445,7 @@ class _TotalsDisplay extends StatelessWidget {
 }
 
 class _ActionButtons extends StatelessWidget {
-  final bool isProcessing;
+  final bool isProcessing; // Includes both processing and saving now
   final VoidCallback onScan;
   final VoidCallback onUpload;
 
@@ -450,7 +504,7 @@ class _LoadingOverlay extends StatelessWidget {
             const CircularProgressIndicator(),
             const SizedBox(height: 10),
             Text(
-              message,
+              message, // Corrected: Use the 'message' parameter
               style: const TextStyle(color: Colors.white),
             ),
           ],

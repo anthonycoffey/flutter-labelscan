@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_labelscan/screens/home_screen.dart';
-import 'package:flutter_labelscan/screens/my_account_screen.dart'; // Will create this next
+import 'package:flutter_labelscan/screens/my_account_screen.dart';
+import 'package:flutter_labelscan/screens/saved_lists_screen.dart'; // Import the new screen
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -13,10 +14,11 @@ class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0; // Start with the first tab (HomeScreen)
 
   // List of widgets to display for each tab
-  // Removed 'const' because HomeScreen() and MyAccountScreen() are not compile-time constants
+  // List of widgets to display for each tab
   static final List<Widget> _widgetOptions = <Widget>[
-    const HomeScreen(), // Can be const if HomeScreen is const constructible
-    const MyAccountScreen(), // Can be const if MyAccountScreen is const constructible
+    const HomeScreen(),
+    const SavedListsScreen(), // Add the SavedListsScreen
+    const MyAccountScreen(),
   ];
 
   void _onItemTapped(int index) {
@@ -38,11 +40,15 @@ class _MainScreenState extends State<MainScreen> {
             label: 'Scan Label',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.history), // Icon for saved lists
+            label: 'Saved',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
             label: 'My Account',
           ),
-         ],
-         currentIndex: _selectedIndex,
+        ],
+        currentIndex: _selectedIndex,
          selectedItemColor: Theme.of(context).colorScheme.primary, // Active tab color
          unselectedItemColor: Colors.grey, // Inactive tab color
          onTap: _onItemTapped,

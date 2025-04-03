@@ -6,6 +6,7 @@ import 'package:intl/intl.dart'; // For currency formatting
 
 import '../models/scanned_item.dart';
 import '../services/api_service.dart';
+import '../services/firestore_service.dart'; // Import FirestoreService
 import '../services/image_service.dart';
 
 // --- State Definition ---
@@ -17,9 +18,11 @@ class HomeState {
   final bool isProcessing;
   final String processingMessage;
   final double taxRate; // Keep tax rate in state if it might change
-  final Object? error; // To hold potential errors
+  final Object? error; // To hold general processing errors
   final String? pendingItemDescription; // For confirmation dialog
   final int? pendingItemPriceCents; // For confirmation dialog
+  final bool isSaving; // Flag for save operation
+  final Object? saveError; // To hold potential save errors
 
   const HomeState({
     this.scannedItems = const [],
@@ -29,10 +32,13 @@ class HomeState {
     this.error,
     this.pendingItemDescription,
     this.pendingItemPriceCents,
+    this.isSaving = false, // Default to not saving
+    this.saveError,
   });
 
   // Calculated properties
-  int get subtotalCents => scannedItems.fold(0, (sum, item) => sum + item.priceInCents);
+  int get subtotalCents =>
+      scannedItems.fold(0, (sum, item) => sum + item.priceInCents);
   int get taxCents => (subtotalCents * taxRate).round();
   int get totalCents => subtotalCents + taxCents;
 
@@ -49,10 +55,13 @@ class HomeState {
     String? processingMessage,
     double? taxRate,
     Object? error,
-    bool clearError = false, // Flag to explicitly clear error
+    bool clearError = false, // Flag to explicitly clear general error
     String? pendingItemDescription,
     int? pendingItemPriceCents,
     bool clearPendingItem = false, // Flag to explicitly clear pending item
+    bool? isSaving,
+    Object? saveError,
+    bool clearSaveError = false, // Flag to explicitly clear save error
   }) {
     return HomeState(
       scannedItems: scannedItems ?? this.scannedItems,
@@ -60,12 +69,17 @@ class HomeState {
       processingMessage: processingMessage ?? this.processingMessage,
       taxRate: taxRate ?? this.taxRate,
       error: clearError ? null : error ?? this.error,
-      pendingItemDescription: clearPendingItem ? null : pendingItemDescription ?? this.pendingItemDescription,
-      pendingItemPriceCents: clearPendingItem ? null : pendingItemPriceCents ?? this.pendingItemPriceCents,
+      pendingItemDescription: clearPendingItem
+          ? null
+          : pendingItemDescription ?? this.pendingItemDescription,
+      pendingItemPriceCents: clearPendingItem
+          ? null
+          : pendingItemPriceCents ?? this.pendingItemPriceCents,
+      isSaving: isSaving ?? this.isSaving,
+      saveError: clearSaveError ? null : saveError ?? this.saveError,
     );
   }
 }
-
 
 // --- Providers ---
 
@@ -76,10 +90,11 @@ final imageServiceProvider = Provider<ImageService>((ref) => ImageService());
 final apiServiceProvider = Provider<ApiService>((ref) => ApiService());
 
 // Provider for the HomeController (using StateNotifier)
-final homeControllerProvider = StateNotifierProvider<HomeController, HomeState>((ref) {
-  return HomeController(ref);
-});
-
+final homeControllerProvider = StateNotifierProvider<HomeController, HomeState>(
+  (ref) {
+    return HomeController(ref);
+  },
+);
 
 // --- Controller ---
 
@@ -88,10 +103,24 @@ class HomeController extends StateNotifier<HomeState> {
   final Random _random = Random();
   // TODO: Move processing words to constants
   final List<String> _processingWords = [
-    "Vibing", "Cooking", "Analyzing", "Decoding", "Unpacking",
-    "Processing", "Thinking", "Calculating", "Scanning", "Inspecting",
-    "Reviewing", "Checking", "Working", "Loading", "Fetching",
-    "Magic...", "Beaming", "Zooming",
+    "Vibing",
+    "Cooking",
+    "Analyzing",
+    "Decoding",
+    "Unpacking",
+    "Processing",
+    "Thinking",
+    "Calculating",
+    "Scanning",
+    "Inspecting",
+    "Reviewing",
+    "Checking",
+    "Working",
+    "Loading",
+    "Fetching",
+    "Magic...",
+    "Beaming",
+    "Zooming",
   ];
 
   HomeController(this._ref) : super(const HomeState());
@@ -117,7 +146,8 @@ class HomeController extends StateNotifier<HomeState> {
   }
 
   Future<void> _processImage(XFile imageFile) async {
-    final String randomWord = _processingWords[_random.nextInt(_processingWords.length)];
+    final String randomWord =
+        _processingWords[_random.nextInt(_processingWords.length)];
     state = state.copyWith(
       isProcessing: true,
       processingMessage: "$randomWord...",
@@ -126,7 +156,9 @@ class HomeController extends StateNotifier<HomeState> {
 
     try {
       final apiService = _ref.read(apiServiceProvider);
-      final Map<String, dynamic> data = await apiService.uploadAndProcessImage(imageFile);
+      final Map<String, dynamic> data = await apiService.uploadAndProcessImage(
+        imageFile,
+      );
 
       // Process the data (similar to _showConfirmationDialog logic)
       final description = data['description']?.toString() ?? 'No description';
@@ -152,12 +184,13 @@ class HomeController extends StateNotifier<HomeState> {
         // The UI layer (HomeScreen) will listen for these pending fields
         // and trigger the confirmation dialog.
       } else {
-         // Handle N/A or invalid price
-         debugPrint("Received N/A or invalid price for '$description': $amount");
-         // Optionally set an error state or show a message via UI listener
-         state = state.copyWith(error: "Could not determine price for '$description'.");
+        // Handle N/A or invalid price
+        debugPrint("Received N/A or invalid price for '$description': $amount");
+        // Optionally set an error state or show a message via UI listener
+        state = state.copyWith(
+          error: "Could not determine price for '$description'.",
+        );
       }
-
     } on ApiException catch (e) {
       debugPrint("API Exception caught in controller: $e");
       state = state.copyWith(error: e); // Store the specific API error
@@ -171,7 +204,8 @@ class HomeController extends StateNotifier<HomeState> {
 
   // Called by UI after user confirms the dialog
   void confirmPendingItem() {
-    if (state.pendingItemDescription != null && state.pendingItemPriceCents != null) {
+    if (state.pendingItemDescription != null &&
+        state.pendingItemPriceCents != null) {
       _addItem(state.pendingItemDescription!, state.pendingItemPriceCents!);
       // Clear pending item after adding
       state = state.copyWith(clearPendingItem: true);
@@ -186,25 +220,33 @@ class HomeController extends StateNotifier<HomeState> {
 
   // Internal method to add item to the list
   void _addItem(String description, int priceInCents) {
-    final newItem = ScannedItem(description: description, priceInCents: priceInCents);
+    final newItem = ScannedItem(
+      description: description,
+      priceInCents: priceInCents,
+    );
     // Create a new list with the added item
-    final updatedItems = List<ScannedItem>.from(state.scannedItems)..add(newItem);
+    final updatedItems = List<ScannedItem>.from(state.scannedItems)
+      ..add(newItem);
     state = state.copyWith(scannedItems: updatedItems, clearError: true);
   }
 
   void deleteItem(int index) {
     if (index < 0 || index >= state.scannedItems.length) return;
-    final updatedItems = List<ScannedItem>.from(state.scannedItems)..removeAt(index);
+    final updatedItems = List<ScannedItem>.from(state.scannedItems)
+      ..removeAt(index);
     state = state.copyWith(scannedItems: updatedItems, clearError: true);
     // Optionally: Show confirmation SnackBar from UI layer
   }
 
   void editItem(int index, String newDescription, int newPriceInCents) {
-     if (index < 0 || index >= state.scannedItems.length) return;
-     final updatedItem = ScannedItem(description: newDescription, priceInCents: newPriceInCents);
-     final updatedItems = List<ScannedItem>.from(state.scannedItems);
-     updatedItems[index] = updatedItem;
-     state = state.copyWith(scannedItems: updatedItems, clearError: true);
+    if (index < 0 || index >= state.scannedItems.length) return;
+    final updatedItem = ScannedItem(
+      description: newDescription,
+      priceInCents: newPriceInCents,
+    );
+    final updatedItems = List<ScannedItem>.from(state.scannedItems);
+    updatedItems[index] = updatedItem;
+    state = state.copyWith(scannedItems: updatedItems, clearError: true);
   }
 
   void clearAllItems() {
@@ -215,6 +257,33 @@ class HomeController extends StateNotifier<HomeState> {
   void _clearError() {
     if (state.error != null) {
       state = state.copyWith(clearError: true);
+    }
+  }
+
+  // --- Save List Action ---
+
+  Future<bool> saveCurrentList() async {
+    if (state.scannedItems.isEmpty) {
+      state = state.copyWith(saveError: "Cannot save an empty list.", clearSaveError: false);
+      return false;
+    }
+    if (state.isSaving) {
+      return false; // Prevent concurrent saves
+    }
+
+    state = state.copyWith(isSaving: true, clearSaveError: true); // Start saving, clear previous save error
+
+    try {
+      // Read the FirestoreService using the provider
+      // This assumes the user is logged in; the service provider handles the check.
+      final firestoreService = _ref.read(firestoreServiceProvider);
+      await firestoreService.saveList(state.scannedItems, state.totalCents);
+      state = state.copyWith(isSaving: false); // Success
+      return true;
+    } catch (e) {
+      print("Error saving list in HomeController: $e");
+      state = state.copyWith(isSaving: false, saveError: e, clearSaveError: false); // Store save error
+      return false;
     }
   }
 }
