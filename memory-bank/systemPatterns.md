@@ -52,3 +52,40 @@ graph TD
 
 *   **Authentication:** User opens app -> `AuthWrapper` checks auth state -> Redirects to `AuthScreen` -> User signs in (e.g., Google) -> Firebase Auth confirms -> `AuthWrapper` redirects to `HomeScreen`.
 *   **Price Scanning:** User on `HomeScreen` taps 'Scan' -> Navigates to `CameraScreen` -> User captures image -> Image sent to Flask backend API -> Backend performs OCR, returns price -> Price received by `CameraScreen` -> `Navigator.pop` returns price to `HomeScreen` -> `HomeScreen` updates total.
+
+## 5. Git Workflow (Feature Branch)
+
+This project follows a standard feature branch workflow:
+
+1.  **Create Feature Branch:** Start new work by creating a branch off `master`:
+    ```bash
+    git checkout master
+    git pull origin master # Ensure master is up-to-date
+    git checkout -b feat/<feature-name> # e.g., feat/collapsible-totals
+    ```
+2.  **Develop & Commit:** Make changes and commit them locally:
+    ```bash
+    # ... make code changes ...
+    git add . # Stage changes
+    git commit -m "feat: Describe the feature briefly"
+    ```
+3.  **Push Branch:** Push the new branch to the remote repository:
+    ```bash
+    git push -u origin feat/<feature-name>
+    ```
+4.  **Create Pull Request (PR):** Go to the GitHub repository and create a Pull Request from the feature branch (`feat/<feature-name>`) into the `master` branch.
+5.  **Review & Merge:** The PR is reviewed, and once approved, merged into `master` via the GitHub interface.
+6.  **Clean Up:** After the PR is merged:
+    *   Switch back to the `master` branch and pull the merged changes:
+        ```bash
+        git checkout master
+        git pull origin master
+        ```
+    *   Delete the local feature branch:
+        ```bash
+        git branch -d feat/<feature-name>
+        ```
+    *   Delete the remote feature branch:
+        ```bash
+        git push origin --delete feat/<feature-name>
+        ```
