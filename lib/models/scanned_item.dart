@@ -10,4 +10,20 @@ class ScannedItem {
     final currencyFormat = NumberFormat.currency(locale: 'en_US', symbol: '\$');
     return currencyFormat.format(priceInCents / 100.0);
   }
+
+  // Convert ScannedItem instance to a Map (for Firestore)
+  Map<String, dynamic> toJson() {
+    return {
+      'description': description,
+      'priceInCents': priceInCents,
+    };
+  }
+
+  // Create ScannedItem instance from a Map (from Firestore)
+  factory ScannedItem.fromJson(Map<String, dynamic> json) {
+    return ScannedItem(
+      description: json['description'] as String,
+      priceInCents: json['priceInCents'] as int,
+    );
+  }
 }
