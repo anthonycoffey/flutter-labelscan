@@ -6,6 +6,8 @@ import 'package:intl/intl.dart'; // For date and currency formatting
 
 import '../services/firestore_service.dart'; // Import the service
 import 'list_details_screen.dart'; // Import the new details screen
+// import 'home_screen.dart'; // No longer needed directly for navigation
+import 'main_screen.dart'; // Import MainScreen for navigation
 
 // Provider to stream the saved lists
 final savedListsStreamProvider = StreamProvider<QuerySnapshot>((ref) {
@@ -21,6 +23,9 @@ final savedListsStreamProvider = StreamProvider<QuerySnapshot>((ref) {
     return Stream.error(e); // Propagate the error to the stream
   }
 });
+
+// Enum for menu actions
+enum SavedListsMenuAction { scanLabel, deleteAll }
 
 class SavedListsScreen extends ConsumerWidget {
   const SavedListsScreen({super.key});
@@ -38,6 +43,67 @@ class SavedListsScreen extends ConsumerWidget {
     return DateFormat('MMM d, yyyy, h:mm a').format(timestamp.toDate());
   }
 
+  // Method to handle menu item selection
+  void _handleMenuSelection(BuildContext context, WidgetRef ref, SavedListsMenuAction action) {
+    switch (action) {
+      case SavedListsMenuAction.scanLabel:
+        // Navigate to MainScreen, which defaults to the HomeScreen (index 0)
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const MainScreen()), // Navigate to MainScreen
+          (Route<dynamic> route) => false, // Remove all previous routes
+        );
+        break;
+      case SavedListsMenuAction.deleteAll:
+        _deleteAllLists(context, ref);
+        break;
+    }
+  }
+
+  // Helper method to call deleteAllLists and show feedback
+  void _deleteAllLists(BuildContext context, WidgetRef ref) async {
+     // Optional: Show confirmation dialog before deleting
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirm Deletion'),
+          content: const Text('Are you sure you want to delete all saved lists? This action cannot be undone.'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(context).pop(false), // Return false
+            ),
+            TextButton(
+              child: const Text('Delete All', style: TextStyle(color: Colors.red)),
+              onPressed: () => Navigator.of(context).pop(true), // Return true
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true) { // Proceed only if confirmed
+      try {
+        // Access the service directly for the action
+        await ref.read(firestoreServiceProvider).deleteAllLists(); // Assumes this method exists
+        // Show confirmation SnackBar
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('All lists deleted successfully')),
+        );
+      } catch (e) {
+        // Show error SnackBar
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting lists: ${e.toString()}'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final savedListsAsyncValue = ref.watch(savedListsStreamProvider);
@@ -53,6 +119,22 @@ class SavedListsScreen extends ConsumerWidget {
         // Keep AppBar background white (from theme), remove elevation if needed explicitly
         elevation: 0,
         centerTitle: false, // Ensure left alignment
+        actions: [
+          PopupMenuButton<SavedListsMenuAction>(
+            icon: const Icon(Icons.menu_open), // Hamburger icon
+            onSelected: (SavedListsMenuAction result) => _handleMenuSelection(context, ref, result),
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<SavedListsMenuAction>>[
+              const PopupMenuItem<SavedListsMenuAction>(
+                value: SavedListsMenuAction.scanLabel,
+                child: Text('Scan Label'),
+              ),
+              const PopupMenuItem<SavedListsMenuAction>(
+                value: SavedListsMenuAction.deleteAll,
+                child: Text('Delete All Lists'),
+              ),
+            ],
+          ),
+        ],
       ),
       body: savedListsAsyncValue.when(
         data: (querySnapshot) {

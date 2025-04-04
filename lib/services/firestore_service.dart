@@ -96,4 +96,36 @@ class FirestoreService {
       throw Exception("Failed to delete list. Please try again.");
     }
   }
+
+  // Delete all list documents for the current user
+  Future<void> deleteAllLists() async {
+    if (userId.isEmpty) {
+      throw Exception("User ID is required to delete all lists.");
+    }
+
+    try {
+      // Get all documents in the user's lists collection
+      final querySnapshot = await _listsCollection.get();
+
+      if (querySnapshot.docs.isEmpty) {
+        // No lists to delete
+        return;
+      }
+
+      // Create a batch write operation
+      final batch = _db.batch();
+
+      // Add each document deletion to the batch
+      for (final doc in querySnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // Commit the batch write
+      await batch.commit();
+    } catch (e) {
+      // Log error or handle it appropriately
+      print("Error deleting all lists from Firestore: $e");
+      throw Exception("Failed to delete all lists. Please try again.");
+    }
+  }
 }
