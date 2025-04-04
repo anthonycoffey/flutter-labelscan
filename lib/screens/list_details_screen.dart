@@ -72,11 +72,18 @@ class _ListDetailsScreenState extends State<ListDetailsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        // Simplified AppBar
-        title: Text(widget.title), // Use widget.title
-        elevation: 0, // Flat app bar
-        backgroundColor: Colors.grey[100], // Match receipt background
-        foregroundColor: Colors.black, // Ensure back button is visible
+        // Use logo image instead of text title
+        title: Image.asset(
+          'lib/assets/logo-text@4x.png',
+          height: 35, // Match height used in other screens
+          semanticLabel: 'LabelScan Logo',
+        ),
+        // Keep AppBar background white (from theme), remove elevation if needed explicitly
+        elevation: 0,
+        centerTitle: false, // Ensure left alignment
+        // Ensure back button uses the correct color from the theme
+        // foregroundColor: Colors.black, // This might be redundant due to theme
+        // backgroundColor: Colors.grey[100], // Remove this to use theme's white background
       ),
       backgroundColor: Colors.white, // Background outside the receipt
       body: Center( // Center the receipt container
@@ -142,8 +149,7 @@ class _ListDetailsScreenState extends State<ListDetailsScreen> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 4),
-                          Divider(height: 1, color: Colors.grey[400]),
+                          // Removed SizedBox and Divider
                         ],
                       ),
                     );
