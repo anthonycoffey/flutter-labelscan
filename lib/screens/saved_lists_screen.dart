@@ -44,11 +44,15 @@ class SavedListsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        // Explicitly set the title style to ensure consistency
-        title: Text(
-          'Saved Lists',
-          style: Theme.of(context).textTheme.titleLarge, // Use standard AppBar title style
+        // Use logo image instead of text title
+        title: Image.asset(
+          'lib/assets/logo-text@4x.png',
+          height: 35, // Match height used in HomeScreen
+          semanticLabel: 'LabelScan Logo',
         ),
+        // Keep AppBar background white (from theme), remove elevation if needed explicitly
+        elevation: 0,
+        centerTitle: false, // Ensure left alignment
       ),
       body: savedListsAsyncValue.when(
         data: (querySnapshot) {

@@ -102,7 +102,15 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Account'),
+        // Use logo image instead of text title
+        title: Image.asset(
+          'lib/assets/logo-text@4x.png',
+          height: 35, // Match height used in other screens
+          semanticLabel: 'LabelScan Logo',
+        ),
+        // Keep AppBar background white (from theme), remove elevation if needed explicitly
+        elevation: 0,
+        centerTitle: false, // Ensure left alignment
       ),
       body: SingleChildScrollView( // Allow scrolling if content overflows
         padding: const EdgeInsets.all(20.0),

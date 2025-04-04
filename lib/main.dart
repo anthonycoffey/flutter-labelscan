@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart'; // Added Riverpod impor
 import 'firebase_options.dart'; // Import generated options
 
 import 'package:flutter_labelscan/screens/auth_wrapper.dart';
+import 'package:flutter_labelscan/screens/splash_screen.dart'; // Import the splash screen
 
 void main() async {
   // Ensure Flutter bindings are initialized
@@ -30,16 +31,23 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         visualDensity: VisualDensity.adaptivePlatformDensity,
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue), // Changed seed color to blue
-        appBarTheme: const AppBarTheme( // Added AppBarTheme
-          shape: Border( // Added Border shape
-            bottom: BorderSide( // Added bottom BorderSide
-              color: Colors.grey, // Set border color to light gray
-              width: 1.0, // Set border width
-            ),
-          ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.white, // Set AppBar background to white
+          foregroundColor: Colors.black, // Set default text/icon color to black for contrast
+          elevation: 0, // Remove shadow
+          scrolledUnderElevation: 0, // Remove shadow when scrolled
+          iconTheme: IconThemeData(color: Colors.black), // Ensure icons are black
+          actionsIconTheme: IconThemeData(color: Colors.black), // Ensure action icons are black
+          // Remove the bottom border shape
+          // shape: Border(
+          //   bottom: BorderSide(
+          //     color: Colors.grey,
+          //     width: 1.0,
+          //   ),
+          // ),
         ),
       ),
-      home: const AuthWrapper(), // Added const
+      home: const SplashScreen(), // Show SplashScreen first
     );
   }
 }
