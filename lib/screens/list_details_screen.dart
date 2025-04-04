@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart'; // For formatting
+import 'package:google_fonts/google_fonts.dart'; // Added for receipt font
 
 import '../models/scanned_item.dart'; // Assuming ScannedItem model exists
 
 // Convert to StatefulWidget
 class ListDetailsScreen extends StatefulWidget {
+  final String title; // Add title parameter
   final List<Map<String, dynamic>> items; // Use Map for flexibility initially
   final Timestamp? timestamp;
   final int totalCents;
 
   const ListDetailsScreen({
     super.key,
+    required this.title, // Require title
     required this.items,
     required this.timestamp,
     required this.totalCents,
@@ -44,12 +47,8 @@ class _ListDetailsScreenState extends State<ListDetailsScreen> {
       }
     }
     // Update the state variable
-    // Use setState only if needed after async operations, but here it's synchronous
-    // within initState, so direct assignment before build is fine.
-    // If parsing were async, you'd use setState(() { _scannedItems = parsed; });
      _scannedItems = parsed; // Direct assignment is okay here before first build
   }
-
 
   // Helper to format cents to currency string (copied from SavedListsScreen)
   String _formatCents(int cents) {
@@ -66,37 +65,115 @@ class _ListDetailsScreenState extends State<ListDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     // Now use the state variable _scannedItems which is parsed only once
+    final receiptTextStyle = GoogleFonts.robotoMono();
+    final receiptBoldTextStyle = GoogleFonts.robotoMono(fontWeight: FontWeight.bold);
 
     return Scaffold(
       appBar: AppBar(
-        // Access timestamp and totalCents via widget.
-        title: Text('List from ${_formatTimestamp(widget.timestamp)}'),
+        // Simplified AppBar
+        title: Text(widget.title, style: receiptTextStyle), // Use widget.title
+        elevation: 0, // Flat app bar
+        backgroundColor: Colors.grey[100], // Match receipt background
+        foregroundColor: Colors.black, // Ensure back button is visible
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              'Total: ${_formatCents(widget.totalCents)}', // Access via widget.
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-            ),
+      backgroundColor: Colors.white, // Background outside the receipt
+      body: Center( // Center the receipt container
+        child: Container(
+          width: 320, // Fixed width for receipt look
+          padding: const EdgeInsets.all(16.0),
+          margin: const EdgeInsets.symmetric(vertical: 20.0), // Add some vertical margin
+          decoration: BoxDecoration(
+            color: Colors.grey[100], // Off-white background
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                spreadRadius: 1,
+                blurRadius: 3,
+                offset: const Offset(0, 2), // changes position of shadow
+              ),
+            ],
+            border: Border.all(color: Colors.grey[300]!), // Subtle border
           ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: _scannedItems.length, // Use state variable
-              itemBuilder: (context, index) {
-                final item = _scannedItems[index]; // Use state variable
-                // Use the correct fields from ScannedItem model
-                return ListTile(
-                  title: Text(item.description), // Use description as the main text
-                  // subtitle: Text(item.description ?? ''), // Remove subtitle if description is title
-                  trailing: Text(item.priceFormatted), // Use the model's formatted price
-                );
-              },
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min, // Fit content height
+            crossAxisAlignment: CrossAxisAlignment.center, // Center header text
+            children: [
+              // Header
+              Text(
+                widget.title.toUpperCase(), // Display the list title (uppercased)
+                style: receiptBoldTextStyle.copyWith(fontSize: 16),
+                textAlign: TextAlign.center, // Center title if it wraps
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _formatTimestamp(widget.timestamp),
+                style: receiptTextStyle.copyWith(fontSize: 12),
+              ),
+              const SizedBox(height: 16),
+              const Divider(thickness: 1, color: Colors.black54),
+              const SizedBox(height: 8),
+
+              // Items List - Use Flexible instead of Expanded inside a Min sized Column
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true, // Important with Flexible in Column
+                  itemCount: _scannedItems.length, // Use state variable
+                  itemBuilder: (context, index) {
+                    final item = _scannedItems[index]; // Use state variable
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  item.description,
+                                  style: receiptTextStyle,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 16), // Space before price
+                              Text(
+                                item.priceFormatted,
+                                style: receiptTextStyle,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Divider(height: 1, color: Colors.grey[400]),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Divider(thickness: 2, color: Colors.black54), // Separator before total
+              const SizedBox(height: 8),
+
+              // Total Section
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 0.0), // Align with items
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Total:',
+                      style: receiptBoldTextStyle,
+                    ),
+                    Text(
+                      _formatCents(widget.totalCents), // Access via widget.
+                      style: receiptBoldTextStyle,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
+      // Removed FloatingActionButton
     );
   }
 }
