@@ -39,14 +39,56 @@ def extract_data():
   image = vision.Image(source=vision.ImageSource(gcs_image_uri=f"gs://{bucket_name}/{unique_filename}"))
 
   cloud_vision_response = client.annotate_image({
-  'image': image,
-  'features': [
-    vision.Feature(type=vision.Feature.Type.TEXT_DETECTION),
-    vision.Feature(type=vision.Feature.Type.SAFE_SEARCH_DETECTION),
-  ],
+    'image': image,
+    'features': [
+      vision.Feature(type=vision.Feature.Type.TEXT_DETECTION),
+      vision.Feature(type=vision.Feature.Type.SAFE_SEARCH_DETECTION),
+      vision.Feature(type=vision.Feature.Type.LABEL_DETECTION),
+      vision.Feature(type=vision.Feature.Type.IMAGE_PROPERTIES),
+      vision.Feature(type=vision.Feature.Type.OBJECT_LOCALIZATION),
+      vision.Feature(type=vision.Feature.Type.LOGO_DETECTION),
+      vision.Feature(type=vision.Feature.Type.LANDMARK_DETECTION),
+      vision.Feature(type=vision.Feature.Type.FACE_DETECTION),
+      vision.Feature(type=vision.Feature.Type.DOCUMENT_TEXT_DETECTION),
+      vision.Feature(type=vision.Feature.Type.CROP_HINTS),
+      vision.Feature(type=vision.Feature.Type.WEB_DETECTION),
+      vision.Feature(type=vision.Feature.Type.PRODUCT_SEARCH),
+    ],
   })
 
-  # Convert the Cloud Vision response to JSON string
+  # Check Safe Search results immediately after Vision API call
+  safe_search = cloud_vision_response.safe_search_annotation
+  # Define likelihood levels that trigger the block (adjust as needed)
+  trigger_likelihoods = (
+      vision.Likelihood.LIKELY,
+      vision.Likelihood.VERY_LIKELY,
+  )
+
+  unsafe_content_detected = (
+      safe_search.adult in trigger_likelihoods or
+      safe_search.violence in trigger_likelihoods or
+      safe_search.racy in trigger_likelihoods # Consider adding medical or spoof if necessary
+  )
+
+  if unsafe_content_detected:
+      current_app.logger.warning(f"Unsafe content detected in {unique_filename}. Deleting file.")
+      try:
+          delete_file_from_firebase(bucket_name, unique_filename)
+          current_app.logger.info(f"Deleted unsafe file: {unique_filename}")
+      except Exception as delete_error:
+          # Log deletion error but still return the error response
+          current_app.logger.error(f"Failed to delete unsafe file {unique_filename}: {str(delete_error)}")
+      
+      # Store filename for message, then set to None so finally block skips deletion
+      filename_for_error = unique_filename 
+      unique_filename = None 
+
+      return jsonify({
+          "status": "error",
+          "message": f"Image rejected due to potentially unsafe content ({filename_for_error})."
+      }), 422 # 422 Unprocessable Entity seems appropriate
+
+  # Convert the Cloud Vision response to JSON string only if safe
   cloud_vision_response_json = json_format.MessageToJson(cloud_vision_response._pb)
 
   try:
@@ -68,7 +110,7 @@ def extract_data():
       role="user",
       parts=[
         types.Part.from_text(
-        text=""" 1. take this cloud vision api response and try to infer the product price data from the response
+        text=""" 1. take this cloud vision api response and try to infer the product description and price data from the response
                  2. convert dollar price to cents
                  3. return JSON object with price data in the following schema:
                  {"description":"*infer product description here*","amount":"*extracted price here (cents)*"}
@@ -111,13 +153,13 @@ def extract_data():
     print(e)
     return jsonify({"status": "error", "message": str(e)}), 500
   finally:
-    # Ensure the file is deleted from Firebase Storage after processing
-    if unique_filename:
+    # Ensure the file is deleted from Firebase Storage *if it wasn't already deleted* by the safe search check
+    if unique_filename: # This check prevents attempting to delete a None filename
       try:
         delete_file_from_firebase(bucket_name, unique_filename)
-        current_app.logger.info(f"Cleaned up file: {unique_filename}")
+        current_app.logger.info(f"Cleaned up processed file: {unique_filename}")
       except Exception as delete_error:
         # Log deletion error but don't fail the request
-        current_app.logger.error(f"Failed to delete file {unique_filename}: {str(delete_error)}")
+        current_app.logger.error(f"Failed to delete processed file {unique_filename}: {str(delete_error)}")
 
   return jsonify({'data': extracted_data})
