@@ -44,7 +44,11 @@ class SavedListsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Saved Lists'),
+        // Explicitly set the title style to ensure consistency
+        title: Text(
+          'Saved Lists',
+          style: Theme.of(context).textTheme.titleLarge, // Use standard AppBar title style
+        ),
       ),
       body: savedListsAsyncValue.when(
         data: (querySnapshot) {

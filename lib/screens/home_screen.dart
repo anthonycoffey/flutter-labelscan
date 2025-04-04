@@ -80,7 +80,7 @@ class HomeScreen extends ConsumerWidget {
       }
     });
 
-     // Listen for successful save to show confirmation and potentially clear list
+     // Listen for successful save to show confirmation and clear list
     ref.listen<HomeState>(homeControllerProvider, (previous, next) {
       final justSavedSuccessfully = previous?.isSaving == true &&
                                     next.isSaving == false &&
@@ -93,8 +93,8 @@ class HomeScreen extends ConsumerWidget {
             backgroundColor: Colors.green,
           ),
         );
-        // Optionally clear the list after successful save
-        // homeController.clearAllItems();
+
+        homeController.clearAllItems(); 
       }
     });
 
@@ -103,32 +103,54 @@ class HomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('LabelScan'),
         actions: [
-          // Save Button
-          IconButton(
-            icon: homeState.isSaving
-                ? const SizedBox( // Show progress indicator when saving
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2.0, color: Colors.white),
-                  )
-                : const Icon(Icons.save_alt), // Show save icon otherwise
-            tooltip: 'Save List',
-            // Disable if list is empty or currently saving
-            onPressed: homeState.scannedItems.isEmpty || homeState.isSaving
-                ? null
-                : () {
-                    // Call the dialog function instead of saving directly
-                    _showSaveListDialog(context, ref);
-                  },
-          ),
-          // Clear Button
-          IconButton(
-            icon: const Icon(Icons.delete_sweep),
-            tooltip: 'Clear All Items',
-            // Disable button if list is empty or processing/saving
-            onPressed: homeState.scannedItems.isEmpty || homeState.isProcessing || homeState.isSaving
-                ? null
-                : () => _showClearConfirmationDialog(context, homeController),
+          // Context Menu Button
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.menu_open), // Changed icon to plus
+            tooltip: 'More Options',
+            onSelected: (String result) {
+              switch (result) {
+                case 'save':
+                  // Call the existing dialog function
+                  _showSaveListDialog(context, ref);
+                  break;
+                case 'clear':
+                  // Call the existing dialog function
+                  _showClearConfirmationDialog(context, homeController);
+                  break;
+              }
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              PopupMenuItem<String>(
+                value: 'save',
+                // Disable if list is empty or currently saving
+                enabled: !(homeState.scannedItems.isEmpty || homeState.isSaving),
+                child: Row(
+                  children: [
+                    homeState.isSaving
+                        ? const SizedBox( // Show progress indicator when saving
+                            width: 20, // Slightly smaller for menu item
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2.0), // Use default color
+                          )
+                        : const Icon(Icons.cloud_upload, size: 20), // Changed save icon
+                    const SizedBox(width: 8),
+                    const Text('Save List'),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'clear',
+                // Disable if list is empty or processing/saving
+                enabled: !(homeState.scannedItems.isEmpty || homeState.isProcessing || homeState.isSaving),
+                child: const Row(
+                  children: [
+                    Icon(Icons.delete_sweep_rounded, size: 20),
+                    SizedBox(width: 8),
+                    Text('Clear All Items'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -153,6 +175,16 @@ class HomeScreen extends ConsumerWidget {
                           );
                         },
                       ),
+              ),
+              // --- Action Buttons Moved Here ---
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16.0),
+                child: _ActionButtons(
+                  // Disable scan/upload if saving or processing
+                  isProcessing: homeState.isProcessing || homeState.isSaving,
+                  onScan: () => homeController.scanLabel(context), // Pass context
+                  onUpload: () => homeController.pickImageFromGallery(context), // Pass context
+                ),
               ),
               // Collapsible Totals Section
               if (homeState.scannedItems.isNotEmpty) ...[
@@ -181,8 +213,7 @@ class HomeScreen extends ConsumerWidget {
                   ],
                 ),
               ],
-              // Leave space for the Floating Action Button
-              const SizedBox(height: 80),
+              // Removed SizedBox placeholder for FAB
             ],
           ),
           // Loading Indicator Overlay for image processing
@@ -193,13 +224,7 @@ class HomeScreen extends ConsumerWidget {
           //   _LoadingOverlay(message: "Saving..."),
         ],
       ),
-      floatingActionButton: _ActionButtons(
-        // Disable scan/upload if saving
-        isProcessing: homeState.isProcessing || homeState.isSaving,
-        onScan: () => homeController.scanLabel(context), // Pass context
-        onUpload: () => homeController.pickImageFromGallery(context), // Pass context
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      // Removed floatingActionButton and floatingActionButtonLocation
     );
   }
 
@@ -225,7 +250,7 @@ class HomeScreen extends ConsumerWidget {
       barrierDismissible: false, // User must tap button!
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          title: const Text('Save List'),
+          // title: const Text('Save List'),
           content: SingleChildScrollView(
             child: Form(
               key: dialogFormKey,
@@ -544,29 +569,26 @@ class _ActionButtons extends StatelessWidget {
     final Color activeColor = Theme.of(context).colorScheme.primary;
     final Color inactiveColor = Colors.grey[600]!;
 
+    // Use Extended FABs for better clarity
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: <Widget>[
-        FloatingActionButton(
+        FloatingActionButton.extended(
           heroTag: 'upload_button',
           onPressed: isProcessing ? null : onUpload,
           tooltip: 'Upload Image',
-          foregroundColor: isProcessing ? inactiveColor : activeColor,
-          backgroundColor: Colors.transparent,
-          elevation: 0.0, focusElevation: 0.0, hoverElevation: 0.0, highlightElevation: 0.0,
-          shape: CircleBorder(side: BorderSide(color: isProcessing ? inactiveColor : activeColor, width: 1.5)),
-          child: const Icon(Icons.photo_library),
+          shape: StadiumBorder(side: BorderSide(color: isProcessing ? inactiveColor : activeColor, width: 1.5)), // Use StadiumBorder for extended
+          icon: const Icon(Icons.photo_library),
+          label: const Text('Upload'), // Added label
         ),
         const SizedBox(width: 16),
-        FloatingActionButton(
+        FloatingActionButton.extended(
           heroTag: 'scan_button',
           onPressed: isProcessing ? null : onScan,
           tooltip: 'Scan Label',
-          foregroundColor: isProcessing ? inactiveColor : activeColor,
-          backgroundColor: Colors.transparent,
-          elevation: 0.0, focusElevation: 0.0, hoverElevation: 0.0, highlightElevation: 0.0,
-          shape: CircleBorder(side: BorderSide(color: isProcessing ? inactiveColor : activeColor, width: 1.5)),
-          child: const Icon(Icons.qr_code_scanner),
+          shape: StadiumBorder(side: BorderSide(color: isProcessing ? inactiveColor : activeColor, width: 1.5)), // Use StadiumBorder for extended
+          icon: const Icon(Icons.qr_code_scanner),
+          label: const Text('Scan'), // Added label
         ),
       ],
     );
