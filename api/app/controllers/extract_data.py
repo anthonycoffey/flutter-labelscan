@@ -68,7 +68,7 @@ def extract_data():
       role="user",
       parts=[
         types.Part.from_text(
-        text=""" 1. take this cloud vision api response and extract price data from it
+        text=""" 1. take this cloud vision api response and try to infer the product price data from the response
                  2. convert dollar price to cents
                  3. return JSON object with price data in the following schema:
                  {"description":"*infer product description here*","amount":"*extracted price here (cents)*"}

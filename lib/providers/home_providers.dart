@@ -3,9 +3,6 @@ import 'package:flutter/material.dart'; // For BuildContext in services
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart'; // For XFile
 import 'package:intl/intl.dart'; // For currency formatting
-
-import 'package:cloud_firestore/cloud_firestore.dart'; // For Timestamp
-
 import '../models/scanned_item.dart';
 import '../services/api_service.dart';
 import '../services/firestore_service.dart'; // Import FirestoreService again
@@ -122,9 +119,7 @@ class HomeController extends StateNotifier<HomeState> {
     "Reviewing",
     "Checking",
     "Working",
-    "Loading",
     "Fetching",
-    "Magic...",
     "Beaming",
     "Zooming",
   ];

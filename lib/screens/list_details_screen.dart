@@ -73,7 +73,7 @@ class _ListDetailsScreenState extends State<ListDetailsScreen> {
     return Scaffold(
       appBar: AppBar(
         // Simplified AppBar
-        title: Text(widget.title, style: receiptTextStyle), // Use widget.title
+        title: Text(widget.title), // Use widget.title
         elevation: 0, // Flat app bar
         backgroundColor: Colors.grey[100], // Match receipt background
         foregroundColor: Colors.black, // Ensure back button is visible
