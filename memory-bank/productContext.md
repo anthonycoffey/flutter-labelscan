@@ -1,4 +1,4 @@
-# Product Context: Flutter LabelScan
+-# Product Context: Flutter LabelScan
 
 ## 1. Problem Statement
 
@@ -22,5 +22,12 @@
 *   **Running Total:** Displays the subtotal of scanned items.
 *   **Tax Calculation:** Estimates and adds applicable taxes.
 *   **Final Cost Estimate:** Shows the estimated total cost.
-*   **Shopping History (Optional):** Ability to save and review past shopping trips.
+*   **Shopping History (Saved Lists):** Ability to save, view, and delete shopping lists (Implemented using Firestore).
 *   **Offline Mode:** Core scanning and totaling functionality works without internet.
+*   **Image Input:** Ability to upload label images or scan in real-time via the camera.
+*   **User Profile:** Basic user account management with avatar upload.
+
+## 5. Planned Enhancements
+
+*   **Toolbar Branding:** Enhance the application's toolbar to incorporate branding elements.
+*   **Home Screen Interactivity:** Improve the user experience on the home screen, specifically making the "Save List" and "Clear List" actions more intuitive (e.g., using a jump menu with text labels).
