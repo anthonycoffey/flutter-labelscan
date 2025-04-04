@@ -4,6 +4,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 
+// import 'home_screen.dart'; // No longer needed directly for navigation
+import 'main_screen.dart'; // Import MainScreen for navigation
+
+// Enum for menu actions
+enum MyAccountMenuAction { scanLabel, inviteFriend }
+
 class MyAccountScreen extends StatefulWidget {
   const MyAccountScreen({super.key});
 
@@ -36,6 +42,28 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
     });
   }
 
+  // Method to handle menu item selection
+  void _handleMenuSelection(MyAccountMenuAction action) {
+    switch (action) {
+      case MyAccountMenuAction.scanLabel:
+        // Navigate to MainScreen, which defaults to the HomeScreen (index 0)
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const MainScreen(),
+          ), // Navigate to MainScreen
+          (Route<dynamic> route) => false, // Remove all previous routes
+        );
+        break;
+      case MyAccountMenuAction.inviteFriend:
+        // Placeholder action - show a SnackBar for now
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invite a friend feature coming soon!')),
+        );
+        break;
+    }
+  }
+
   Future<void> _pickAndUploadAvatar() async {
     if (_user == null) return;
 
@@ -48,7 +76,9 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
 
       if (image == null) return; // User cancelled picker
 
-      setState(() { _isUploading = true; });
+      setState(() {
+        _isUploading = true;
+      });
 
       File imageFile = File(image.path);
       String userId = _user!.uid;
@@ -74,7 +104,6 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Avatar updated successfully!')),
       );
-
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error uploading avatar: ${e.toString()}')),
@@ -82,7 +111,9 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
       debugPrint('Error uploading avatar: $e');
     } finally {
       if (mounted) {
-        setState(() { _isUploading = false; });
+        setState(() {
+          _isUploading = false;
+        });
       }
     }
   }
@@ -111,8 +142,26 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
         // Keep AppBar background white (from theme), remove elevation if needed explicitly
         elevation: 0,
         centerTitle: false, // Ensure left alignment
+        actions: [
+          PopupMenuButton<MyAccountMenuAction>(
+            icon: const Icon(Icons.menu_open), // Hamburger icon
+            onSelected: _handleMenuSelection, // Use the handler method
+            itemBuilder:
+                (BuildContext context) => <PopupMenuEntry<MyAccountMenuAction>>[
+                  const PopupMenuItem<MyAccountMenuAction>(
+                    value: MyAccountMenuAction.scanLabel,
+                    child: Text('Scan Label'),
+                  ),
+                  const PopupMenuItem<MyAccountMenuAction>(
+                    value: MyAccountMenuAction.inviteFriend,
+                    child: Text('Invite a friend'),
+                  ),
+                ],
+          ),
+        ],
       ),
-      body: SingleChildScrollView( // Allow scrolling if content overflows
+      body: SingleChildScrollView(
+        // Allow scrolling if content overflows
         padding: const EdgeInsets.all(20.0),
         child: Center(
           child: Column(
@@ -125,17 +174,25 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
                 children: [
                   CircleAvatar(
                     radius: 60,
-                    backgroundColor: Colors.grey.shade300, // Placeholder background
-                    backgroundImage: _avatarUrl != null ? NetworkImage(_avatarUrl!) : null,
-                    child: _avatarUrl == null
-                        ? Icon(Icons.person, size: 60, color: Colors.grey.shade600)
-                        : null, // Show icon only if no image
+                    backgroundColor:
+                        Colors.grey.shade300, // Placeholder background
+                    backgroundImage:
+                        _avatarUrl != null ? NetworkImage(_avatarUrl!) : null,
+                    child:
+                        _avatarUrl == null
+                            ? Icon(
+                              Icons.person,
+                              size: 60,
+                              color: Colors.grey.shade600,
+                            )
+                            : null, // Show icon only if no image
                   ),
                   // Upload Button Overlay
                   Positioned(
                     right: 0,
                     bottom: 0,
-                    child: Material( // Wrap IconButton for InkWell effect
+                    child: Material(
+                      // Wrap IconButton for InkWell effect
                       color: Theme.of(context).colorScheme.primary,
                       borderRadius: BorderRadius.circular(20),
                       child: InkWell(
@@ -143,13 +200,22 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
                         onTap: _isUploading ? null : _pickAndUploadAvatar,
                         child: Padding(
                           padding: const EdgeInsets.all(6.0),
-                          child: _isUploading
-                              ? const SizedBox( // Show spinner when uploading
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                )
-                              : const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                          child:
+                              _isUploading
+                                  ? const SizedBox(
+                                    // Show spinner when uploading
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                  : const Icon(
+                                    Icons.camera_alt,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
                         ),
                       ),
                     ),
@@ -167,13 +233,16 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
                 const SizedBox(height: 5),
                 Text(
                   _user!.email ?? 'No email address',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
                 ),
               ] else ...[
-                const Text('Not logged in'), // Should not happen if AuthWrapper works
+                const Text(
+                  'Not logged in',
+                ), // Should not happen if AuthWrapper works
               ],
               const SizedBox(height: 40), // Spacer
-
               // Future Settings Section Placeholder
               // Divider(),
               // Text('Settings', style: Theme.of(context).textTheme.titleLarge),
