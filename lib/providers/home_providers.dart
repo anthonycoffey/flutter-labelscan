@@ -222,7 +222,7 @@ class HomeController extends StateNotifier<HomeState> {
   // Internal method to add item to the list
   void _addItem(String description, int priceInCents) {
     final newItem = ScannedItem(
-      description: description,
+      description: description.toUpperCase(), // Force uppercase
       priceInCents: priceInCents,
     );
     // Create a new list with the added item
@@ -242,7 +242,7 @@ class HomeController extends StateNotifier<HomeState> {
   void editItem(int index, String newDescription, int newPriceInCents) {
     if (index < 0 || index >= state.scannedItems.length) return;
     final updatedItem = ScannedItem(
-      description: newDescription,
+      description: newDescription.toUpperCase(), // Force uppercase
       priceInCents: newPriceInCents,
     );
     final updatedItems = List<ScannedItem>.from(state.scannedItems);

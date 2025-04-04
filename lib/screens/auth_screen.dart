@@ -36,10 +36,7 @@ class _AuthScreenState extends State<AuthScreen> {
       final auth = FirebaseAuth.instance;
 
       if (_isLogin) {
-        await auth.signInWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
+        await auth.signInWithEmailAndPassword(email: email, password: password);
         // Navigation happens automatically via AuthWrapper stream
       } else {
         await auth.createUserWithEmailAndPassword(
@@ -59,10 +56,11 @@ class _AuthScreenState extends State<AuthScreen> {
       });
       // print('Generic Exception: $e'); // Debugging
     } finally {
-      if (mounted) { // Check if the widget is still in the tree
-          setState(() {
-              _isLoading = false;
-          });
+      if (mounted) {
+        // Check if the widget is still in the tree
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
@@ -87,7 +85,8 @@ class _AuthScreenState extends State<AuthScreen> {
         return;
       }
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
 
       // Create a new credential
       final OAuthCredential credential = GoogleAuthProvider.credential(
@@ -98,20 +97,19 @@ class _AuthScreenState extends State<AuthScreen> {
       // Once signed in, return the UserCredential
       await FirebaseAuth.instance.signInWithCredential(credential);
       // Navigation happens automatically via AuthWrapper stream
-
     } on FirebaseAuthException catch (e) {
-       if (mounted) {
-         setState(() {
-           _errorMessage = e.message ?? 'Google Sign-In failed.';
-         });
-       }
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.message ?? 'Google Sign-In failed.';
+        });
+      }
       // print('Google Sign-In FirebaseAuthException: ${e.code} - ${e.message}');
     } catch (e) {
-       if (mounted) {
-         setState(() {
-           _errorMessage = 'An unexpected error occurred during Google Sign-In.';
-         });
-       }
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'An unexpected error occurred during Google Sign-In.';
+        });
+      }
       // print('Google Sign-In Generic Exception: $e');
     } finally {
       if (mounted) {
@@ -123,7 +121,6 @@ class _AuthScreenState extends State<AuthScreen> {
   }
   // --- End Google Sign-In Logic ---
 
-
   @override
   void dispose() {
     _emailController.dispose();
@@ -134,24 +131,23 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_isLogin ? 'Login' : 'Sign Up'),
-      ),
+      backgroundColor: Colors.white, // Set background color to white
       body: Center(
-        child: SingleChildScrollView( // Prevents overflow when keyboard appears
+        child: SingleChildScrollView(
+          // Prevents overflow when keyboard appears
           padding: const EdgeInsets.all(20.0),
           child: Form(
             key: _formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                // Logo Placeholder
-                Padding( // Removed 'const'
+                // Replace placeholder Icon with actual logo
+                Padding(
                   padding: const EdgeInsets.symmetric(vertical: 30.0),
-                  child: Icon(
-                    Icons.label_important, // Placeholder icon (replace with actual logo later)
-                    size: 80,
-                    color: Theme.of(context).colorScheme.primary, // Use theme's primary color
+                  child: Image.asset(
+                    'lib/assets/logo-text@4x.png', // Use logo-text PNG
+                    height: 60, // Adjust height as needed for login screen
+                    semanticLabel: 'LabelScan Logo',
                   ),
                 ),
                 if (_errorMessage != null)
@@ -159,7 +155,9 @@ class _AuthScreenState extends State<AuthScreen> {
                     padding: const EdgeInsets.only(bottom: 10.0),
                     child: Text(
                       _errorMessage!,
-                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -167,15 +165,20 @@ class _AuthScreenState extends State<AuthScreen> {
                 // Show spinner OR the form fields and buttons
                 if (_isLoading)
                   const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 20.0), // Add padding around spinner
+                    padding: EdgeInsets.symmetric(
+                      vertical: 20.0,
+                    ), // Add padding around spinner
                     child: CircularProgressIndicator(),
                   )
-                else ...[ // Show form fields and all buttons only when not loading
+                else ...[
+                  // Show form fields and all buttons only when not loading
                   TextFormField(
                     controller: _emailController,
                     key: const ValueKey('email'),
                     validator: (value) {
-                      if (value == null || value.isEmpty || !value.contains('@')) {
+                      if (value == null ||
+                          value.isEmpty ||
+                          !value.contains('@')) {
                         return 'Please enter a valid email address.';
                       }
                       return null;
@@ -209,7 +212,9 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                   const SizedBox(height: 10), // Spacing
                   ElevatedButton.icon(
-                    icon: const Icon(Icons.login), // Replace with a Google icon if desired
+                    icon: const Icon(
+                      Icons.login,
+                    ), // Replace with a Google icon if desired
                     label: const Text('Sign in with Google'),
                     onPressed: _signInWithGoogle,
                     style: ElevatedButton.styleFrom(
@@ -224,9 +229,11 @@ class _AuthScreenState extends State<AuthScreen> {
                         _errorMessage = null; // Clear error on switch
                       });
                     },
-                    child: Text(_isLogin
-                        ? 'Create new account'
-                        : 'I already have an account'),
+                    child: Text(
+                      _isLogin
+                          ? 'Create new account'
+                          : 'I already have an account',
+                    ),
                   ),
                 ],
               ],
