@@ -62,8 +62,9 @@ class SavedListsScreen extends ConsumerWidget {
 
               // Safely access data with null checks and defaults
               final title = data?['title'] as String? ?? 'Untitled List'; // Get the title
-              final totalCents = data?['total_cents'] as int? ?? 0; // Corrected field name
-              final timestamp = data?['timestamp'] as Timestamp?; // Corrected field name
+              final totalCents = data?['total_cents'] as int? ?? 0;
+              final subtotalCents = data?['subtotal_cents'] as int? ?? 0; // Get subtotal_cents
+              final timestamp = data?['timestamp'] as Timestamp?;
               final itemsList = data?['items'] as List<dynamic>? ?? [];
               final itemCount = itemsList.length;
               // Ensure itemsList is correctly typed for navigation
@@ -86,6 +87,7 @@ class SavedListsScreen extends ConsumerWidget {
                               items: typedItemsList, // Pass the correctly typed list
                               timestamp: timestamp,
                               totalCents: totalCents,
+                              subtotalCents: subtotalCents, // Pass subtotalCents
                             ),
                           ),
                         );

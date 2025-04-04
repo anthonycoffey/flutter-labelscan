@@ -35,11 +35,12 @@ class FirestoreService {
   CollectionReference get _listsCollection =>
       _db.collection('users').doc(userId).collection('lists');
 
-  // Save the current list of items, total, and title to Firestore
+  // Save the current list of items, total, subtotal, and title to Firestore
   Future<void> saveList({
       required String title, // Add title parameter
       required List<ScannedItem> items,
       required int totalCents,
+      required int subtotalCents, // Add subtotal parameter
   }) async {
     if (userId.isEmpty) {
       throw Exception("User ID is required to save list.");
@@ -53,6 +54,7 @@ class FirestoreService {
       'title': title, // Add the title field
       'items': items.map((item) => item.toJson()).toList(), // Convert items to JSON
       'total_cents': totalCents, // Use 'total_cents'
+      'subtotal_cents': subtotalCents, // Add subtotal_cents field
       'timestamp': FieldValue.serverTimestamp(), // Use 'timestamp' and server value
       'userId': userId, // Optional: store userId
     };
