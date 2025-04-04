@@ -11,6 +11,7 @@ class ListDetailsScreen extends StatefulWidget {
   final List<Map<String, dynamic>> items; // Use Map for flexibility initially
   final Timestamp? timestamp;
   final int totalCents;
+  final int subtotalCents; // Add subtotal parameter
 
   const ListDetailsScreen({
     super.key,
@@ -18,6 +19,7 @@ class ListDetailsScreen extends StatefulWidget {
     required this.items,
     required this.timestamp,
     required this.totalCents,
+    required this.subtotalCents, // Require subtotal
   });
 
   @override
@@ -151,6 +153,25 @@ class _ListDetailsScreenState extends State<ListDetailsScreen> {
               const SizedBox(height: 8),
               const Divider(thickness: 2, color: Colors.black54), // Separator before total
               const SizedBox(height: 8),
+
+              // Subtotal Section
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 0.0), // Align with items
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Subtotal:',
+                      style: receiptTextStyle, // Use regular style for subtotal label
+                    ),
+                    Text(
+                      _formatCents(widget.subtotalCents), // Display subtotal
+                      style: receiptTextStyle, // Use regular style for subtotal value
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 4), // Space between subtotal and total
 
               // Total Section
               Padding(

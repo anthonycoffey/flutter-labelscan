@@ -293,6 +293,7 @@ class HomeController extends StateNotifier<HomeState> {
         title: title,
         items: state.scannedItems, // Pass the List<ScannedItem> directly
         totalCents: state.totalCents,
+        subtotalCents: state.subtotalCents, // Pass the subtotal
       );
 
       // Update state on success
