@@ -4,10 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart'; // For XFile
 import 'package:intl/intl.dart'; // For currency formatting
 
+import 'package:cloud_firestore/cloud_firestore.dart'; // For Timestamp
+
 import '../models/scanned_item.dart';
 import '../services/api_service.dart';
-import '../services/firestore_service.dart'; // Import FirestoreService
+import '../services/firestore_service.dart'; // Import FirestoreService again
 import '../services/image_service.dart';
+// import 'list_provider.dart'; // Remove ListProvider import
 
 // --- State Definition ---
 
@@ -88,6 +91,9 @@ final imageServiceProvider = Provider<ImageService>((ref) => ImageService());
 
 // Provider for ApiService
 final apiServiceProvider = Provider<ApiService>((ref) => ApiService());
+
+// Provider for ListProvider (needed for saving) - REMOVED
+// final listProvider = ChangeNotifierProvider<ListProvider>((ref) => ListProvider());
 
 // Provider for the HomeController (using StateNotifier)
 final homeControllerProvider = StateNotifierProvider<HomeController, HomeState>(
@@ -260,30 +266,46 @@ class HomeController extends StateNotifier<HomeState> {
     }
   }
 
-  // --- Save List Action ---
-
-  Future<bool> saveCurrentList() async {
-    if (state.scannedItems.isEmpty) {
-      state = state.copyWith(saveError: "Cannot save an empty list.", clearSaveError: false);
-      return false;
+   // Helper to clear save error state
+  void _clearSaveError() {
+    if (state.saveError != null) {
+      state = state.copyWith(clearSaveError: true);
     }
-    if (state.isSaving) {
-      return false; // Prevent concurrent saves
+  }
+
+  // --- Save List Action (with Title) ---
+
+  Future<void> saveCurrentListWithTitle(String title) async {
+    // Basic checks (already done in UI before calling, but good practice)
+    if (state.scannedItems.isEmpty || state.isSaving) {
+      return;
     }
 
-    state = state.copyWith(isSaving: true, clearSaveError: true); // Start saving, clear previous save error
+    _clearSaveError(); // Clear previous save errors
+    state = state.copyWith(isSaving: true); // Set saving state
 
     try {
-      // Read the FirestoreService using the provider
-      // This assumes the user is logged in; the service provider handles the check.
+      // Get the FirestoreService instance
       final firestoreService = _ref.read(firestoreServiceProvider);
-      await firestoreService.saveList(state.scannedItems, state.totalCents);
-      state = state.copyWith(isSaving: false); // Success
-      return true;
+
+      // Call the saveList method from FirestoreService
+      await firestoreService.saveList(
+        title: title,
+        items: state.scannedItems, // Pass the List<ScannedItem> directly
+        totalCents: state.totalCents,
+      );
+
+      // Update state on success
+      state = state.copyWith(isSaving: false);
+      // Optionally clear the list after saving
+      // clearAllItems();
+
     } catch (e) {
       print("Error saving list in HomeController: $e");
-      state = state.copyWith(isSaving: false, saveError: e, clearSaveError: false); // Store save error
-      return false;
+      // Update state with error
+      state = state.copyWith(isSaving: false, saveError: e);
     }
+    // Note: The 'isSaving: false' is set here and also triggers the listener
+    // in the UI which shows the success SnackBar.
   }
 }

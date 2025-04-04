@@ -61,8 +61,9 @@ class SavedListsScreen extends ConsumerWidget {
               final listId = doc.id; // Get the document ID for deletion
 
               // Safely access data with null checks and defaults
-              final totalCents = data?['totalCents'] as int? ?? 0;
-              final timestamp = data?['createdAt'] as Timestamp?;
+              final title = data?['title'] as String? ?? 'Untitled List'; // Get the title
+              final totalCents = data?['total_cents'] as int? ?? 0; // Corrected field name
+              final timestamp = data?['timestamp'] as Timestamp?; // Corrected field name
               final itemsList = data?['items'] as List<dynamic>? ?? [];
               final itemCount = itemsList.length;
               // Ensure itemsList is correctly typed for navigation
@@ -81,6 +82,7 @@ class SavedListsScreen extends ConsumerWidget {
                           context,
                           MaterialPageRoute(
                             builder: (context) => ListDetailsScreen(
+                              title: title, // Pass the title
                               items: typedItemsList, // Pass the correctly typed list
                               timestamp: timestamp,
                               totalCents: totalCents,
@@ -112,8 +114,8 @@ class SavedListsScreen extends ConsumerWidget {
                   ],
                 ),
                 child: ListTile(
-                  title: Text('List saved on ${_formatTimestamp(timestamp)}'),
-                  subtitle: Text('$itemCount items'),
+                  title: Text(title), // Display the title
+                  subtitle: Text('$itemCount items - ${_formatTimestamp(timestamp)}'), // Combine count and date
                   trailing: Text(
                     _formatCents(totalCents),
                     style: const TextStyle(fontWeight: FontWeight.bold),

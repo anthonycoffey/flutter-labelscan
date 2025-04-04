@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:intl/intl.dart'; // For NumberFormat
+import 'package:cloud_firestore/cloud_firestore.dart'; // Needed for Timestamp
 
 import '../models/scanned_item.dart';
 import '../providers/home_providers.dart';
 import '../services/api_service.dart'; // For ApiException
+// Removed ListProvider import as saving is handled by HomeController now
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -78,6 +80,25 @@ class HomeScreen extends ConsumerWidget {
       }
     });
 
+     // Listen for successful save to show confirmation and potentially clear list
+    ref.listen<HomeState>(homeControllerProvider, (previous, next) {
+      final justSavedSuccessfully = previous?.isSaving == true &&
+                                    next.isSaving == false &&
+                                    next.saveError == null;
+
+      if (justSavedSuccessfully && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('List saved successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        // Optionally clear the list after successful save
+        // homeController.clearAllItems();
+      }
+    });
+
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('LabelScan'),
@@ -95,17 +116,9 @@ class HomeScreen extends ConsumerWidget {
             // Disable if list is empty or currently saving
             onPressed: homeState.scannedItems.isEmpty || homeState.isSaving
                 ? null
-                : () async {
-                    final success = await homeController.saveCurrentList();
-                    if (success && context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('List saved successfully!'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
-                    // Error SnackBar is handled by the listener above
+                : () {
+                    // Call the dialog function instead of saving directly
+                    _showSaveListDialog(context, ref);
                   },
           ),
           // Clear Button
@@ -191,6 +204,77 @@ class HomeScreen extends ConsumerWidget {
   }
 
   // --- Dialogs (kept in UI layer, but trigger controller actions) ---
+
+  // --- New Dialog for Saving List with Title ---
+  Future<void> _showSaveListDialog(BuildContext context, WidgetRef ref) async {
+    final homeController = ref.read(homeControllerProvider.notifier);
+    final homeState = ref.read(homeControllerProvider); // Read current state
+    final titleController = TextEditingController();
+    final GlobalKey<FormState> dialogFormKey = GlobalKey<FormState>();
+
+    // Pre-check if there are items to save before showing dialog
+    if (homeState.scannedItems.isEmpty) {
+       ScaffoldMessenger.of(context).showSnackBar(
+         const SnackBar(content: Text('Nothing to save.')),
+       );
+       return;
+    }
+
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // User must tap button!
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Save List'),
+          content: SingleChildScrollView(
+            child: Form(
+              key: dialogFormKey,
+              child: ListBody(
+                children: <Widget>[
+                  const Text('Please enter a title for this list:'),
+                  TextFormField(
+                    controller: titleController,
+                    decoration: const InputDecoration(hintText: 'List Title'),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Title cannot be empty';
+                      }
+                      return null;
+                    },
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Save'),
+              onPressed: () async { // Make async for save operation
+                if (dialogFormKey.currentState!.validate()) {
+                  final title = titleController.text.trim();
+                  Navigator.of(dialogContext).pop(); // Close dialog first
+
+                  // Call the controller method to save with title
+                  // This method needs to be added/updated in HomeController
+                  await homeController.saveCurrentListWithTitle(title);
+
+                  // Success/Error Snackbars are handled by the listener in build method
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
 
   void _showClearConfirmationDialog(BuildContext context, HomeController controller) {
     showDialog<void>(

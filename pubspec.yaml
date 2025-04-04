@@ -49,6 +49,8 @@ dependencies:
   http_parser: ^4.0.2 # Added for MediaType parsing
   mime: ^1.0.5 # Added for MIME type lookup from path
   intl: ^0.20.2
+  google_fonts: ^6.2.1 # Added for receipt styling
+  provider: ^6.1.2 # Added for state management
 
 dev_dependencies:
   flutter_test:

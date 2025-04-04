@@ -35,8 +35,12 @@ class FirestoreService {
   CollectionReference get _listsCollection =>
       _db.collection('users').doc(userId).collection('lists');
 
-  // Save the current list of items and total to Firestore
-  Future<void> saveList(List<ScannedItem> items, int totalCents) async {
+  // Save the current list of items, total, and title to Firestore
+  Future<void> saveList({
+      required String title, // Add title parameter
+      required List<ScannedItem> items,
+      required int totalCents,
+  }) async {
     if (userId.isEmpty) {
       throw Exception("User ID is required to save list.");
     }
@@ -44,11 +48,13 @@ class FirestoreService {
       throw Exception("Cannot save an empty list.");
     }
 
-    final timestamp = FieldValue.serverTimestamp(); // Use server timestamp
+    // Use the correct field names consistent with ListProvider and SavedListsScreen
     final listData = {
+      'title': title, // Add the title field
       'items': items.map((item) => item.toJson()).toList(), // Convert items to JSON
-      'totalCents': totalCents,
-      'createdAt': timestamp,
+      'total_cents': totalCents, // Use 'total_cents'
+      'timestamp': FieldValue.serverTimestamp(), // Use 'timestamp' and server value
+      'userId': userId, // Optional: store userId
     };
 
     try {
@@ -67,7 +73,7 @@ class FirestoreService {
       return const Stream.empty();
     }
     return _listsCollection
-        .orderBy('createdAt', descending: true) // Order by newest first
+        .orderBy('timestamp', descending: true) // Order by 'timestamp' field
         .snapshots();
   }
 
