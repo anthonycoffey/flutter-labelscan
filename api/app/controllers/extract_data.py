@@ -74,6 +74,7 @@ def extract_data():
                  {"description":"*infer product description here*","amount":"*extracted price here (cents)*"}
                  ** note: description should be a single line of text, no new lines and a maximum of 35 characters
                  ** do not wrap the response in an array, just return the JSON object
+                 ** never include price in the description
         """,
         ),
         types.Part.from_text(
