@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Added Riverpod import
 import 'firebase_options.dart'; // Import generated options
-
-import 'package:flutter_labelscan/screens/auth_wrapper.dart';
 import 'package:flutter_labelscan/screens/splash_screen.dart'; // Import the splash screen
 
 void main() async {

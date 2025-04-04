@@ -34,14 +34,17 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       // You might want to set a background color matching your theme
-      // backgroundColor: Colors.white,
+      backgroundColor: Colors.white,
       body: Center(
-        child: Image.asset( // Use Image.asset for PNG
-          'lib/assets/logo-full@4x.png', // Use highest resolution PNG
-          height: 150, // Adjust size as needed
-          semanticLabel: 'LabelScan Full Logo',
-          // Optional: Add scale parameter if needed, but height usually suffices
-          // scale: 1.0,
+        child: SizedBox(
+          child: Image.asset(
+            'lib/assets/logo-full@4x.png',
+            semanticLabel: 'LabelScan Full Logo',
+            fit: BoxFit.contain,
+            // Ensure no border properties exist
+            width: null,
+            height: null,
+          ),
         ),
       ),
     );
