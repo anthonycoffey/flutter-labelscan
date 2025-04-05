@@ -200,13 +200,13 @@ class HomeScreen extends ConsumerWidget {
                             children: [
                               // Use brand icon instead of inventory icon
                               Image.asset(
-                                'lib/assets/logo-icon@4x.png', // Path to the brand icon
-                                height: 100, // Match the previous icon size
+                                'lib/assets/logo-icon-transparent-bg@4x.png', // Path to the brand icon
+                                height: 200, // Match the previous icon size
                                 // color: Colors.black38, // Keep the color muted
                                 // Optional: Add semantics label
                                 semanticLabel: 'LabelScan Logo Icon',
                               ),
-                              SizedBox(height: 16),
+                              SizedBox(height: 32),
                               Text('No items in your list yet'),
                               SizedBox(height: 8),
                               Text('Upload or scan price tags to get started!', style: TextStyle(fontSize: 14, color: Colors.black54)),
