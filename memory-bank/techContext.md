@@ -38,3 +38,9 @@
 *   **Commit Messages:** Not strictly enforced (hobby project).
 *   **Branching Strategy:** Trunk-based development (main/master initially).
 *   **Testing:** `flutter_test` (Unit/Widget testing). No integration testing currently planned.
+
+## 6. Active Context / Recent Changes (as of 4/4/2025)
+
+*   Focus on updating Memory Bank files (`techContext.md`, `progress.md`) to reflect recent progress based on git history and conversation.
+*   Recent development involved app branding updates (app name, icons) across platforms.
+*   UI refinement: Removed divider on the receipt/list details screen.
