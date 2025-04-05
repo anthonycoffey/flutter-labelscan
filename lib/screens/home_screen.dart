@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 // import 'package:flutter_svg/flutter_svg.dart'; // Keep package but comment out import
 import 'package:intl/intl.dart'; // For NumberFormat
-import 'package:cloud_firestore/cloud_firestore.dart'; // Needed for Timestamp
 
 import '../models/scanned_item.dart';
 import '../providers/home_providers.dart';
@@ -195,8 +194,24 @@ class HomeScreen extends ConsumerWidget {
               Expanded(
                 child:
                     homeState.scannedItems.isEmpty
-                        ? const Center(
-                          child: Text('Scan or upload your first label!'),
+                        ? Center( // Removed 'const' here
+                            child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Use brand icon instead of inventory icon
+                              Image.asset(
+                                'lib/assets/logo-icon@4x.png', // Path to the brand icon
+                                height: 100, // Match the previous icon size
+                                // color: Colors.black38, // Keep the color muted
+                                // Optional: Add semantics label
+                                semanticLabel: 'LabelScan Logo Icon',
+                              ),
+                              SizedBox(height: 16),
+                              Text('No items in your list yet'),
+                              SizedBox(height: 8),
+                              Text('Tap Scan or Upload to add items', style: TextStyle(fontSize: 14, color: Colors.black54)),
+                            ],
+                            ),
                         )
                         : _ScannedItemsListView(
                           // Pass isSaving state here
