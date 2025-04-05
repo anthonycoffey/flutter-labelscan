@@ -206,10 +206,9 @@ class HomeScreen extends ConsumerWidget {
                                 // Optional: Add semantics label
                                 semanticLabel: 'LabelScan Logo Icon',
                               ),
-                              SizedBox(height: 32),
                               Text('No items in your list yet'),
                               SizedBox(height: 8),
-                              Text('Upload or scan price tags to get started!', style: TextStyle(fontSize: 14, color: Colors.black54)),
+                              Text('Upload or Scan an item to get started!', style: TextStyle(fontSize: 14, color: Colors.black54)),
                             ],
                             ),
                         )
@@ -689,8 +688,17 @@ class _ScannedItemsListView extends StatelessWidget {
               ],
             ),
             child: ListTile(
-              title: Text(item.description),
-              trailing: Text(item.priceFormatted),
+              title: Text(
+                item.description,
+                style: const TextStyle(fontFamily: 'monospace'), // Apply monospace font
+              ),
+              trailing: Text(
+                item.priceFormatted,
+                style: const TextStyle(
+                  fontFamily: 'monospace', // Apply monospace font
+                  fontSize: 16, // Increase font size
+                ), 
+              ),
             ),
           );
         },
