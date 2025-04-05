@@ -209,7 +209,7 @@ class HomeScreen extends ConsumerWidget {
                               SizedBox(height: 16),
                               Text('No items in your list yet'),
                               SizedBox(height: 8),
-                              Text('Tap Scan or Upload to add items', style: TextStyle(fontSize: 14, color: Colors.black54)),
+                              Text('Upload or scan price tags to get started!', style: TextStyle(fontSize: 14, color: Colors.black54)),
                             ],
                             ),
                         )
