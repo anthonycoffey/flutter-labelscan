@@ -4,11 +4,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 
-// import 'home_screen.dart'; // No longer needed directly for navigation
-import 'main_screen.dart'; // Import MainScreen for navigation
+// import 'main_screen.dart'; // Import MainScreen for navigation
 
 // Enum for menu actions
-enum MyAccountMenuAction { scanLabel, inviteFriend }
+enum MyAccountMenuAction { scanLabel } // Removed inviteFriend
 
 class MyAccountScreen extends StatefulWidget {
   const MyAccountScreen({super.key});
@@ -43,26 +42,23 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
   }
 
   // Method to handle menu item selection
-  void _handleMenuSelection(MyAccountMenuAction action) {
-    switch (action) {
-      case MyAccountMenuAction.scanLabel:
-        // Navigate to MainScreen, which defaults to the HomeScreen (index 0)
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const MainScreen(),
-          ), // Navigate to MainScreen
-          (Route<dynamic> route) => false, // Remove all previous routes
-        );
-        break;
-      case MyAccountMenuAction.inviteFriend:
-        // Placeholder action - show a SnackBar for now
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invite a friend feature coming soon!')),
-        );
-        break;
-    }
-  }
+  // unused for now, but kept for future use
+  // TODO: REMOVE OR REIMPLEMENT LATER
+  // void _handleMenuSelection(MyAccountMenuAction action) {
+  //   switch (action) {
+  //     case MyAccountMenuAction.scanLabel:
+  //       // Navigate to MainScreen, which defaults to the HomeScreen (index 0)
+  //       Navigator.pushAndRemoveUntil(
+  //         context,
+  //         MaterialPageRoute(
+  //           builder: (context) => const MainScreen(),
+  //         ), // Navigate to MainScreen
+  //         (Route<dynamic> route) => false, // Remove all previous routes
+  //       );
+  //       break;
+  //     // Removed inviteFriend case
+  //   }
+  // }
 
   Future<void> _pickAndUploadAvatar() async {
     if (_user == null) return;
@@ -142,23 +138,7 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
         // Keep AppBar background white (from theme), remove elevation if needed explicitly
         elevation: 0,
         centerTitle: false, // Ensure left alignment
-        actions: [
-          PopupMenuButton<MyAccountMenuAction>(
-            icon: const Icon(Icons.menu_open), // Hamburger icon
-            onSelected: _handleMenuSelection, // Use the handler method
-            itemBuilder:
-                (BuildContext context) => <PopupMenuEntry<MyAccountMenuAction>>[
-                  const PopupMenuItem<MyAccountMenuAction>(
-                    value: MyAccountMenuAction.scanLabel,
-                    child: Text('Scan Label'),
-                  ),
-                  const PopupMenuItem<MyAccountMenuAction>(
-                    value: MyAccountMenuAction.inviteFriend,
-                    child: Text('Invite a friend'),
-                  ),
-                ],
-          ),
-        ],
+        actions: [], // Removed PopupMenuButton
       ),
       body: SingleChildScrollView(
         // Allow scrolling if content overflows
@@ -242,7 +222,23 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
                   'Not logged in',
                 ), // Should not happen if AuthWrapper works
               ],
-              const SizedBox(height: 40), // Spacer
+              const SizedBox(height: 30), // Adjusted Spacer
+
+              // Invite Friend Section
+              ListTile(
+                leading: const Icon(Icons.person_add_alt_1),
+                title: const Text('Invite a Friend'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  // Placeholder action - show a SnackBar for now
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Invite a friend feature coming soon!')),
+                  );
+                },
+              ),
+              const SizedBox(height: 20), // Spacer before sign out
+
               // Future Settings Section Placeholder
               // Divider(),
               // Text('Settings', style: Theme.of(context).textTheme.titleLarge),

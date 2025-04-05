@@ -44,13 +44,19 @@ class SavedListsScreen extends ConsumerWidget {
   }
 
   // Method to handle menu item selection
-  void _handleMenuSelection(BuildContext context, WidgetRef ref, SavedListsMenuAction action) {
+  void _handleMenuSelection(
+    BuildContext context,
+    WidgetRef ref,
+    SavedListsMenuAction action,
+  ) {
     switch (action) {
       case SavedListsMenuAction.scanLabel:
         // Navigate to MainScreen, which defaults to the HomeScreen (index 0)
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => const MainScreen()), // Navigate to MainScreen
+          MaterialPageRoute(
+            builder: (context) => const MainScreen(),
+          ), // Navigate to MainScreen
           (Route<dynamic> route) => false, // Remove all previous routes
         );
         break;
@@ -62,20 +68,25 @@ class SavedListsScreen extends ConsumerWidget {
 
   // Helper method to call deleteAllLists and show feedback
   void _deleteAllLists(BuildContext context, WidgetRef ref) async {
-     // Optional: Show confirmation dialog before deleting
+    // Optional: Show confirmation dialog before deleting
     final confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Confirm Deletion'),
-          content: const Text('Are you sure you want to delete all saved lists? This action cannot be undone.'),
+          content: const Text(
+            'Are you sure you want to delete all saved lists? This action cannot be undone.',
+          ),
           actions: <Widget>[
             TextButton(
               child: const Text('Cancel'),
               onPressed: () => Navigator.of(context).pop(false), // Return false
             ),
             TextButton(
-              child: const Text('Delete All', style: TextStyle(color: Colors.red)),
+              child: const Text(
+                'Delete All',
+                style: TextStyle(color: Colors.red),
+              ),
               onPressed: () => Navigator.of(context).pop(true), // Return true
             ),
           ],
@@ -83,10 +94,13 @@ class SavedListsScreen extends ConsumerWidget {
       },
     );
 
-    if (confirm == true) { // Proceed only if confirmed
+    if (confirm == true) {
+      // Proceed only if confirmed
       try {
         // Access the service directly for the action
-        await ref.read(firestoreServiceProvider).deleteAllLists(); // Assumes this method exists
+        await ref
+            .read(firestoreServiceProvider)
+            .deleteAllLists(); // Assumes this method exists
         // Show confirmation SnackBar
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('All lists deleted successfully')),
@@ -103,7 +117,6 @@ class SavedListsScreen extends ConsumerWidget {
     }
   }
 
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final savedListsAsyncValue = ref.watch(savedListsStreamProvider);
@@ -119,22 +132,7 @@ class SavedListsScreen extends ConsumerWidget {
         // Keep AppBar background white (from theme), remove elevation if needed explicitly
         elevation: 0,
         centerTitle: false, // Ensure left alignment
-        actions: [
-          PopupMenuButton<SavedListsMenuAction>(
-            icon: const Icon(Icons.menu_open), // Hamburger icon
-            onSelected: (SavedListsMenuAction result) => _handleMenuSelection(context, ref, result),
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<SavedListsMenuAction>>[
-              const PopupMenuItem<SavedListsMenuAction>(
-                value: SavedListsMenuAction.scanLabel,
-                child: Text('Scan Label'),
-              ),
-              const PopupMenuItem<SavedListsMenuAction>(
-                value: SavedListsMenuAction.deleteAll,
-                child: Text('Delete All Lists'),
-              ),
-            ],
-          ),
-        ],
+        actions: [], // Removed PopupMenuButton
       ),
       body: savedListsAsyncValue.when(
         data: (querySnapshot) {
@@ -151,15 +149,17 @@ class SavedListsScreen extends ConsumerWidget {
               final listId = doc.id; // Get the document ID for deletion
 
               // Safely access data with null checks and defaults
-              final title = data?['title'] as String? ?? 'Untitled List'; // Get the title
+              final title =
+                  data?['title'] as String? ?? 'Untitled List'; // Get the title
               final totalCents = data?['total_cents'] as int? ?? 0;
-              final subtotalCents = data?['subtotal_cents'] as int? ?? 0; // Get subtotal_cents
+              final subtotalCents =
+                  data?['subtotal_cents'] as int? ?? 0; // Get subtotal_cents
               final timestamp = data?['timestamp'] as Timestamp?;
               final itemsList = data?['items'] as List<dynamic>? ?? [];
               final itemCount = itemsList.length;
               // Ensure itemsList is correctly typed for navigation
-              final List<Map<String, dynamic>> typedItemsList = List<Map<String, dynamic>>.from(itemsList);
-
+              final List<Map<String, dynamic>> typedItemsList =
+                  List<Map<String, dynamic>>.from(itemsList);
 
               return Slidable(
                 key: ValueKey(listId), // Unique key for Slidable
@@ -172,13 +172,16 @@ class SavedListsScreen extends ConsumerWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => ListDetailsScreen(
-                              title: title, // Pass the title
-                              items: typedItemsList, // Pass the correctly typed list
-                              timestamp: timestamp,
-                              totalCents: totalCents,
-                              subtotalCents: subtotalCents, // Pass subtotalCents
-                            ),
+                            builder:
+                                (context) => ListDetailsScreen(
+                                  title: title, // Pass the title
+                                  items:
+                                      typedItemsList, // Pass the correctly typed list
+                                  timestamp: timestamp,
+                                  totalCents: totalCents,
+                                  subtotalCents:
+                                      subtotalCents, // Pass subtotalCents
+                                ),
                           ),
                         );
                       },
@@ -191,10 +194,12 @@ class SavedListsScreen extends ConsumerWidget {
                 ),
                 endActionPane: ActionPane(
                   motion: const ScrollMotion(),
-                  dismissible: DismissiblePane(onDismissed: () {
-                    // Call delete method when dismissed
-                    _deleteList(context, ref, listId);
-                  }),
+                  dismissible: DismissiblePane(
+                    onDismissed: () {
+                      // Call delete method when dismissed
+                      _deleteList(context, ref, listId);
+                    },
+                  ),
                   children: [
                     SlidableAction(
                       onPressed: (context) => _deleteList(context, ref, listId),
@@ -207,10 +212,15 @@ class SavedListsScreen extends ConsumerWidget {
                 ),
                 child: ListTile(
                   title: Text(title), // Display the title
-                  subtitle: Text('$itemCount items - ${_formatTimestamp(timestamp)}'), // Combine count and date
+                  subtitle: Text(
+                    '$itemCount items - ${_formatTimestamp(timestamp)}',
+                  ), // Combine count and date
                   trailing: Text(
                     _formatCents(totalCents),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.normal,
+                      fontSize: 16, // Increase font size
+                    ),
                   ),
                   // Optional: Add onTap to view list details later
                   // onTap: () { /* Navigate to a detail view? */ },
@@ -224,9 +234,13 @@ class SavedListsScreen extends ConsumerWidget {
           print("Error in SavedListsScreen stream: $error"); // Log the error
           // Check if the error is due to user not being logged in
           if (error.toString().contains('User not logged in')) {
-             return const Center(child: Text('Please log in to view saved lists.'));
+            return const Center(
+              child: Text('Please log in to view saved lists.'),
+            );
           }
-          return Center(child: Text('Error loading lists: ${error.toString()}'));
+          return Center(
+            child: Text('Error loading lists: ${error.toString()}'),
+          );
         },
       ),
     );
