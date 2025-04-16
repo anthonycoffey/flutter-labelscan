@@ -14,13 +14,14 @@
 
 ## 3. Key Dependencies / Packages
 
-*   **State Management:** `setState` (based on `StatefulWidget` usage)
+*   **State Management:** `flutter_riverpod: ^2.5.1`, `provider: ^6.1.2` (Riverpod is likely primary, Provider might be used alongside or legacy)
 *   **Navigation:** `Navigator` (Imperative routing, e.g., `Navigator.push`, `Navigator.pop`)
 *   **Scanning:** `camera: ^0.11.1` (Used for image capture, potentially for scanning?)
+*   **UI Helpers:** `flutter_slidable: ^3.0.0` (For swipe actions, e.g., deleting lists)
 *   **HTTP Client (if applicable):** `http: ^1.3.0`
 *   **Local Storage (if applicable):** `path_provider: ^2.1.5` (Used for finding file system paths)
 *   **Firebase (if applicable):** `firebase_core: ^3.13.0`, `firebase_auth: ^5.5.2`, `google_sign_in: ^6.2.1`, `cloud_firestore: ^5.6.6`, `firebase_storage: ^12.4.5`
-*   **Other Key Packages:** `image_picker: ^1.1.2`, `path: ^1.9.1`, `http_parser: ^4.0.2`, `mime: ^1.0.5`, `intl: ^0.20.2`, `cupertino_icons: ^1.0.8`
+*   **Other Key Packages:** `image_picker: ^1.1.2`, `path: ^1.9.1`, `http_parser: ^4.0.2`, `mime: ^1.0.5`, `intl: ^0.20.2`, `cupertino_icons: ^1.0.8`, `google_fonts: ^6.2.1`, `flutter_svg: ^2.0.10+1`
 *   **Linting/Formatting:** `flutter_lints: ^5.0.0`
 
 *(Add other significant dependencies as needed)*

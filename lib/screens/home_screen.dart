@@ -15,7 +15,10 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Watch the state and listen for errors/state changes
+    // Listeners should ideally be outside the main build method if possible,
+    // but for simplicity here, we keep them. They don't rebuild the widget directly.
+    // We still watch the whole state here for convenience in dialogs/listeners,
+    // but specific UI sections below will use Consumer/select for optimization.
     final homeState = ref.watch(homeControllerProvider);
     final homeController = ref.read(homeControllerProvider.notifier);
 
@@ -80,10 +83,10 @@ class HomeScreen extends ConsumerWidget {
             // Check if widget is still in the tree
             _showScanConfirmationDialog(
               context,
-              homeController,
+              homeController, // Pass controller read above
               next.pendingItemDescription!,
               next.pendingItemPriceCents!,
-              homeState.formatCents, // Pass formatter from current state
+              ref.read(homeControllerProvider).formatCents, // Read formatter from state
             );
           }
         });
@@ -124,66 +127,49 @@ class HomeScreen extends ConsumerWidget {
           // scale: 1.0,
         ),
         centerTitle: false, // Ensure left alignment
+        // Wrap actions in a Consumer for targeted rebuilds
         actions: [
-          // Context Menu Button
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.menu_open), // Changed icon to plus
-            tooltip: 'More Options',
-            onSelected: (String result) {
-              switch (result) {
-                case 'save':
-                  // Call the existing dialog function
-                  _showSaveListDialog(context, ref);
-                  break;
-                case 'clear':
-                  // Call the existing dialog function
-                  _showClearConfirmationDialog(context, homeController);
-                  break;
-              }
-            },
-            itemBuilder:
-                (BuildContext context) => <PopupMenuEntry<String>>[
-                  PopupMenuItem<String>(
-                    value: 'save',
+          Consumer(
+            builder: (context, ref, child) {
+              // Select only the state needed for the buttons
+              final itemsEmpty = ref.watch(homeControllerProvider.select((s) => s.scannedItems.isEmpty));
+              final isSaving = ref.watch(homeControllerProvider.select((s) => s.isSaving));
+              final isProcessing = ref.watch(homeControllerProvider.select((s) => s.isProcessing));
+              // Read controller once, it doesn't change
+              final controller = ref.read(homeControllerProvider.notifier);
+
+              return Row( // Use Row to keep buttons together
+                mainAxisSize: MainAxisSize.min, // Prevent Row from taking max width
+                children: [
+                  // Save List Button
+                  IconButton(
+                    icon: const Icon(Icons.save_as), // Save icon
+                    tooltip: 'Save List',
+                    // Apply green color only when active
+                    color: (itemsEmpty || isSaving)
+                        ? null // Use default color when disabled
+                        : Colors.green, // Use green when active
                     // Disable if list is empty or currently saving
-                    enabled:
-                        !(homeState.scannedItems.isEmpty || homeState.isSaving),
-                    child: Row(
-                      children: [
-                        homeState.isSaving
-                            ? const SizedBox(
-                              // Show progress indicator when saving
-                              width: 20, // Slightly smaller for menu item
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.0,
-                              ), // Use default color
-                            )
-                            : const Icon(
-                              Icons.cloud_upload,
-                              size: 20,
-                            ), // Changed save icon
-                        const SizedBox(width: 8),
-                        const Text('Save List'),
-                      ],
-                    ),
+                    onPressed: (itemsEmpty || isSaving)
+                        ? null
+                        : () => _showSaveListDialog(context, ref),
                   ),
-                  PopupMenuItem<String>(
-                    value: 'clear',
+                  // Clear List Button
+                  IconButton(
+                    icon: const Icon(Icons.delete_sweep_outlined), // Clear icon
+                    tooltip: 'Clear All Items',
+                    // Apply red color only when active
+                    color: (itemsEmpty || isProcessing || isSaving)
+                        ? null // Use default color when disabled
+                        : Colors.red, // Use red when active
                     // Disable if list is empty or processing/saving
-                    enabled:
-                        !(homeState.scannedItems.isEmpty ||
-                            homeState.isProcessing ||
-                            homeState.isSaving),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.delete_sweep_rounded, size: 20),
-                        SizedBox(width: 8),
-                        Text('Clear All Items'),
-                      ],
-                    ),
+                    onPressed: (itemsEmpty || isProcessing || isSaving)
+                        ? null
+                        : () => _showClearConfirmationDialog(context, controller), // Pass controller read above
                   ),
                 ],
+              );
+            },
           ),
         ],
       ),
@@ -191,9 +177,15 @@ class HomeScreen extends ConsumerWidget {
         children: [
           Column(
             children: <Widget>[
+              // Wrap the list/empty view in a Consumer for targeted rebuilds
               Expanded(
-                child:
-                    homeState.scannedItems.isEmpty
+                child: Consumer(
+                  builder: (context, ref, child) {
+                    // Select only the necessary state parts for this section
+                    final items = ref.watch(homeControllerProvider.select((s) => s.scannedItems));
+                    final isSaving = ref.watch(homeControllerProvider.select((s) => s.isSaving));
+
+                    return items.isEmpty
                         ? Center( // Removed 'const' here
                             child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -206,95 +198,132 @@ class HomeScreen extends ConsumerWidget {
                                 // Optional: Add semantics label
                                 semanticLabel: 'LabelScan Logo Icon',
                               ),
-                              Text('No items in your list yet'),
-                              SizedBox(height: 8),
-                              Text('Upload or Scan an item to get started!', style: TextStyle(fontSize: 14, color: Colors.black54)),
+                              const Text('No items in your list yet'),
+                              const SizedBox(height: 8),
+                              const Text('Upload or Scan an item to get started!', style: TextStyle(fontSize: 14, color: Colors.black54)),
                             ],
-                            ),
+                          ),
                         )
                         : _ScannedItemsListView(
-                          // Pass isSaving state here
-                          items: homeState.scannedItems,
-                          isSaving: homeState.isSaving,
-                          onEdit:
-                              (index) =>
-                                  _showEditItemDialog(context, ref, index),
-                          onDelete: (index) {
-                            // Disable delete if saving (already handled in SlidableAction onPressed)
-                            // if (homeState.isSaving) return; // Redundant check
-                            homeController.deleteItem(index);
-                            // Show confirmation SnackBar after delete
-                            ScaffoldMessenger.of(context).clearSnackBars(); // Clear previous SnackBars
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Item deleted'),
-                                behavior: SnackBarBehavior.floating, // Make it float
-                                margin: EdgeInsets.only(top: 8.0, left: 8.0, right: 8.0), // Add top margin
-                              ),
-                            );
-                          },
-                        ),
+                            // Pass the watched state parts
+                            items: items,
+                            isSaving: isSaving,
+                            onEdit: (index) => _showEditItemDialog(context, ref, index),
+                            onDelete: (index) {
+                              // Read controller here as it doesn't change
+                              final controller = ref.read(homeControllerProvider.notifier);
+                              controller.deleteItem(index);
+                              // Show confirmation SnackBar after delete
+                              ScaffoldMessenger.of(context).clearSnackBars(); // Clear previous SnackBars
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Item deleted'),
+                                  behavior: SnackBarBehavior.floating, // Make it float
+                                  margin: EdgeInsets.only(top: 8.0, left: 8.0, right: 8.0), // Add top margin
+                                ),
+                              );
+                            },
+                          );
+                  },
+                ),
               ),
               // --- Action Buttons Moved Here ---
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16.0),
-                child: _ActionButtons(
-                  // Disable scan/upload if saving or processing
-                  isProcessing: homeState.isProcessing || homeState.isSaving,
-                  onScan:
-                      () => homeController.scanLabel(context), // Pass context
-                  onUpload:
-                      () => homeController.pickImageFromGallery(
-                        context,
-                      ), // Pass context
-                ),
+              // Wrap Action Buttons in Consumer for targeted rebuilds
+              Consumer(
+                builder: (context, ref, child) {
+                  // Select only the state needed for the buttons
+                  final isProcessing = ref.watch(homeControllerProvider.select((s) => s.isProcessing));
+                  final isSaving = ref.watch(homeControllerProvider.select((s) => s.isSaving));
+                  // Read controller once, it doesn't change
+                  final controller = ref.read(homeControllerProvider.notifier);
+                  final bool isDisabled = isProcessing || isSaving;
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16.0),
+                    child: _ActionButtons(
+                      // Pass the watched state
+                      isProcessing: isDisabled,
+                      onScan: () => controller.scanLabel(context), // Pass context
+                      onUpload: () => controller.pickImageFromGallery(context), // Pass context
+                    ),
+                  );
+                },
               ),
-              // Collapsible Totals Section
-              if (homeState.scannedItems.isNotEmpty) ...[
-                const Divider(
-                  height: 1,
-                  indent: 16,
-                  endIndent: 16,
-                ), // Divider before totals
-                ExpansionTile(
-                  title: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              // Collapsible Totals Section - Wrap in Consumer
+              Consumer(
+                builder: (context, ref, child) {
+                  // Select only the state needed for the totals section
+                  final itemsNotEmpty = ref.watch(homeControllerProvider.select((s) => s.scannedItems.isNotEmpty));
+                  final totalCents = ref.watch(homeControllerProvider.select((s) => s.totalCents));
+                  final subtotalCents = ref.watch(homeControllerProvider.select((s) => s.subtotalCents));
+                  final taxCents = ref.watch(homeControllerProvider.select((s) => s.taxCents));
+                  final taxRate = ref.watch(homeControllerProvider.select((s) => s.taxRate));
+                  final formatCents = ref.watch(homeControllerProvider.select((s) => s.formatCents)); // Get formatter method
+
+                  // Only build if items are not empty
+                  if (!itemsNotEmpty) {
+                    return const SizedBox.shrink(); // Return empty widget if no items
+                  }
+
+                  return Column( // Wrap ExpansionTile in Column to return it
+                    mainAxisSize: MainAxisSize.min, // Prevent Column from expanding
                     children: [
-                      const Text(
-                        'Totals',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        homeState.formatCents(homeState.totalCents),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                      const Divider(
+                        height: 1,
+                        indent: 16,
+                        endIndent: 16,
+                      ), // Divider before totals
+                      ExpansionTile(
+                        title: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Totals',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              formatCents(totalCents), // Use selected value
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
                         ),
+                        tilePadding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        childrenPadding: EdgeInsets.zero, // _TotalsDisplay handles its padding
+                        initiallyExpanded: false,
+                        children: <Widget>[
+                          _TotalsDisplay(
+                            subtotalCents: subtotalCents, // Use selected value
+                            taxCents: taxCents, // Use selected value
+                            taxRate: taxRate, // Use selected value
+                            formatCents: formatCents, // Pass selected formatter
+                          ),
+                        ],
                       ),
                     ],
-                  ),
-                  tilePadding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  childrenPadding:
-                      EdgeInsets.zero, // _TotalsDisplay handles its padding
-                  initiallyExpanded: false,
-                  children: <Widget>[
-                    _TotalsDisplay(
-                      subtotalCents: homeState.subtotalCents,
-                      taxCents: homeState.taxCents,
-                      taxRate: homeState.taxRate,
-                      formatCents: homeState.formatCents,
-                    ),
-                  ],
-                ),
-              ],
+                  );
+                },
+              ),
               // Removed SizedBox placeholder for FAB
             ],
           ),
-          // Loading Indicator Overlay for image processing
-          if (homeState.isProcessing)
-            _LoadingOverlay(message: homeState.processingMessage),
+          // Loading Indicator Overlay for image processing - Wrap in Consumer
+          Consumer(
+            builder: (context, ref, child) {
+              final isProcessing = ref.watch(homeControllerProvider.select((s) => s.isProcessing));
+              final message = ref.watch(homeControllerProvider.select((s) => s.processingMessage));
+
+              if (isProcessing) {
+                return _LoadingOverlay(message: message);
+              } else {
+                return const SizedBox.shrink(); // Return empty widget if not processing
+              }
+            },
+          ),
           // Could add a saving overlay too if desired, but button indicator might be enough
-          // if (homeState.isSaving)
+          // if (homeState.isSaving) // This would need its own Consumer if re-enabled
           //   _LoadingOverlay(message: "Saving..."),
         ],
       ),
@@ -307,7 +336,8 @@ class HomeScreen extends ConsumerWidget {
   // --- New Dialog for Saving List with Title ---
   Future<void> _showSaveListDialog(BuildContext context, WidgetRef ref) async {
     final homeController = ref.read(homeControllerProvider.notifier);
-    final homeState = ref.read(homeControllerProvider); // Read current state
+    // Read state directly here as it's needed for pre-check and dialog logic
+    final homeState = ref.read(homeControllerProvider);
     final titleController = TextEditingController();
     final GlobalKey<FormState> dialogFormKey = GlobalKey<FormState>();
 
@@ -431,6 +461,9 @@ class HomeScreen extends ConsumerWidget {
     final priceController = TextEditingController(
       text: (currentItem.priceInCents / 100.0).toStringAsFixed(2),
     );
+    final quantityController = TextEditingController(
+      text: currentItem.quantity.toString(),
+    );
     final formKey = GlobalKey<FormState>();
 
     return showDialog<void>(
@@ -471,11 +504,28 @@ class HomeScreen extends ConsumerWidget {
                       decimal: true,
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty)
+                      if (value == null || value.isEmpty) {
                         return 'Please enter a price';
+                      }
                       final price = double.tryParse(value);
-                      if (price == null || price < 0)
+                      if (price == null || price < 0) {
                         return 'Please enter a valid positive price';
+                      }
+                      return null;
+                    },
+                  ),
+                  TextFormField(
+                    controller: quantityController,
+                    decoration: const InputDecoration(labelText: 'Quantity'),
+                    keyboardType: TextInputType.number,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter quantity';
+                      }
+                      final qty = int.tryParse(value);
+                      if (qty == null || qty < 1) {
+                        return 'Quantity must be at least 1';
+                      }
                       return null;
                     },
                   ),
@@ -495,10 +545,12 @@ class HomeScreen extends ConsumerWidget {
                   final newDescription = descriptionController.text.trim();
                   final newPriceInCents =
                       (double.parse(priceController.text) * 100).round();
+                  final newQuantity = int.parse(quantityController.text);
                   controller.editItem(
                     index,
                     newDescription,
                     newPriceInCents,
+                    newQuantity,
                   ); // Call controller
                   Navigator.of(context).pop();
                 }
@@ -518,28 +570,28 @@ class HomeScreen extends ConsumerWidget {
     int priceInCents,
     String Function(int) formatCents, // Receive formatter
   ) async {
-    final theme = Theme.of(context); // Get theme for styling
+    final theme = Theme.of(context);
+    final quantityController = TextEditingController(text: '1');
+    double sliderValue = 1;
+    final formKey = GlobalKey<FormState>();
+
     return showDialog<void>(
       context: context,
-      barrierDismissible: false, // User must tap button!
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Row(
-            // Add icon to title
             children: [
               Icon(Icons.check_circle_outline, size: 28, color: Colors.green),
               SizedBox(width: 10),
-              Text('Label Scanned', style: TextStyle(color: Colors.green)),
+              Text('Label Scan Complete!', style: TextStyle(color: Colors.green)),
             ],
           ),
           content: SingleChildScrollView(
-            // Keep scrollable just in case
-            child: Padding(
-              // Add padding around content
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Form(
+              key: formKey,
               child: Column(
-                // Use Column for better layout
-                mainAxisSize: MainAxisSize.min, // Take minimum space
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Row(
@@ -552,16 +604,11 @@ class HomeScreen extends ConsumerWidget {
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        // Allow text wrapping
                         child: RichText(
                           text: TextSpan(
-                            style:
-                                theme.textTheme.bodyLarge, // Default text style
+                            style: theme.textTheme.bodyLarge,
                             children: [
-                              // Removed: const TextSpan(text: 'Description: ', style: TextStyle(fontWeight: FontWeight.bold)),
-                              TextSpan(
-                                text: description.toUpperCase(),
-                              ), // Ensure display is uppercase
+                              TextSpan(text: description.toUpperCase()),
                             ],
                           ),
                         ),
@@ -575,19 +622,55 @@ class HomeScreen extends ConsumerWidget {
                         Icons.add_shopping_cart_rounded,
                         size: 20,
                         color: theme.colorScheme.secondary,
-                      ), // Changed icon
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
-                        // Allow text wrapping (though less likely for price)
                         child: RichText(
                           text: TextSpan(
                             style: theme.textTheme.bodyLarge,
                             children: [
-                              // Removed: const TextSpan(text: 'Price: ', style: TextStyle(fontWeight: FontWeight.bold)),
                               TextSpan(text: formatCents(priceInCents)),
                             ],
                           ),
                         ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Quantity'),
+                      StatefulBuilder(
+                        builder: (context, setState) {
+                          return Column(
+                            children: [
+                              Slider(
+                                value: sliderValue,
+                                min: 1,
+                                max: 20,
+                                divisions: 19,
+                                label: sliderValue.toInt().toString(),
+                                onChanged: (value) {
+                                  setState(() {
+                                    sliderValue = value;
+                                    quantityController.text = value.toInt().toString();
+                                  });
+                                },
+                              ),
+                              Center(
+                                child: Text(
+                                  sliderValue.toInt().toString(),
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -597,30 +680,34 @@ class HomeScreen extends ConsumerWidget {
           ),
           actionsPadding: const EdgeInsets.symmetric(
             horizontal: 16.0,
-            vertical: 12.0, // Increased vertical padding
-          ), // Add padding to actions
+            vertical: 12.0,
+          ),
           actions: <Widget>[
             TextButton(
-              
               style: TextButton.styleFrom(
-                foregroundColor: theme.colorScheme.secondary, // Use secondary color
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0), // Match Add button padding
+                foregroundColor: theme.colorScheme.secondary,
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
               ),
               child: const Text('Cancel'),
               onPressed: () {
-                controller.cancelPendingItem(); // Call controller action
+                controller.cancelPendingItem();
                 Navigator.of(context).pop();
               },
             ),
-            ElevatedButton.icon( // Changed to ElevatedButton.icon
-              // Use ElevatedButton for Add
-           
-              icon: const Icon(Icons.add_circle, size: 18), // Added icon
-              label: const Text('Add to List'), // Keep label
-              onPressed: () {
-                controller.confirmPendingItem(); // Call controller action
-                Navigator.of(context).pop();
-              },
+            ElevatedButton.icon(
+              icon: const Icon(Icons.add_circle, size: 18),
+              label: const Text('Add to List'),
+                  onPressed: () {
+                    if (formKey.currentState!.validate()) {
+                      final quantity = int.parse(quantityController.text);
+                      // Update pending item state directly
+                      controller.state = controller.state.copyWith(
+                        pendingItemQuantity: quantity
+                      );
+                      controller.confirmPendingItem();
+                      Navigator.of(context).pop();
+                    }
+                  },
             ),
           ],
         );
@@ -688,16 +775,29 @@ class _ScannedItemsListView extends StatelessWidget {
               ],
             ),
             child: ListTile(
-              title: Text(
-                item.description,
-                style: const TextStyle(fontFamily: 'monospace'), // Apply monospace font
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.description,
+                    style: const TextStyle(fontFamily: 'monospace'),
+                  ),
+                  Text(
+                    'Qty: ${item.quantity} • ${NumberFormat.currency(locale: 'en_US', symbol: '\$').format(item.priceInCents / 100)}/ea',
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
               ),
               trailing: Text(
-                item.priceFormatted,
+                item.totalPriceFormatted,
                 style: const TextStyle(
-                  fontFamily: 'monospace', // Apply monospace font
-                  fontSize: 16, // Increase font size
-                ), 
+                  fontFamily: 'monospace',
+                  fontSize: 16,
+                ),
               ),
             ),
           );

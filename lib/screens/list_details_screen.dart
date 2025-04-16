@@ -136,15 +136,27 @@ class _ListDetailsScreenState extends State<ListDetailsScreen> {
                           Row(
                             children: [
                               Expanded(
-                                child: Text(
-                                  item.description,
-                                  style: receiptTextStyle,
-                                  overflow: TextOverflow.ellipsis,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item.description,
+                                      style: receiptTextStyle,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Text(
+                                      'Qty: ${item.quantity} • ${_formatCents(item.priceInCents)}/ea',
+                                      style: receiptTextStyle.copyWith(
+                                        fontSize: 12,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                               const SizedBox(width: 16), // Space before price
                               Text(
-                                item.priceFormatted,
+                                item.totalPriceFormatted,
                                 style: receiptTextStyle,
                               ),
                             ],
@@ -160,42 +172,75 @@ class _ListDetailsScreenState extends State<ListDetailsScreen> {
               const Divider(thickness: 2, color: Colors.black54), // Separator before total
               const SizedBox(height: 8),
 
-              // Subtotal Section
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 0.0), // Align with items
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Subtotal:',
-                      style: receiptTextStyle, // Use regular style for subtotal label
-                    ),
-                    Text(
-                      _formatCents(widget.subtotalCents), // Display subtotal
-                      style: receiptTextStyle, // Use regular style for subtotal value
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 4), // Space between subtotal and total
+              // Calculate Tax Percentage
+              () { // Use an IIFE (Immediately Invoked Function Expression) to scope variables
+                double taxPercentage = 0;
+                if (widget.subtotalCents > 0) {
+                  taxPercentage = ((widget.totalCents - widget.subtotalCents) / widget.subtotalCents) * 100;
+                }
+                final percentageFormat = NumberFormat("0.00'%'", 'en_US'); // Format as X.XX%
+                final taxPercentageString = percentageFormat.format(taxPercentage);
 
-              // Total Section
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 0.0), // Align with items
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                return Column( // Return the widgets that use the calculated value
                   children: [
-                    Text(
-                      'Total:',
-                      style: receiptBoldTextStyle,
+                    // Subtotal Section
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 0.0), // Align with items
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Subtotal', // Removed colon
+                            style: receiptTextStyle, // Use regular style for subtotal label
+                          ),
+                          Text(
+                            _formatCents(widget.subtotalCents), // Display subtotal
+                            style: receiptTextStyle, // Use regular style for subtotal value
+                          ),
+                        ],
+                      ),
                     ),
-                    Text(
-                      _formatCents(widget.totalCents), // Access via widget.
-                      style: receiptBoldTextStyle,
+                    const SizedBox(height: 4), // Space between subtotal and taxes
+
+                    // Taxes Section
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 0.0), // Align with items
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Sales Tax ($taxPercentageString)', // Show percentage, removed colon
+                            style: receiptTextStyle, // Use regular style for taxes label
+                          ),
+                          Text(
+                            _formatCents(widget.totalCents - widget.subtotalCents), // Calculate and display taxes
+                            style: receiptTextStyle, // Use regular style for taxes value
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 4), // Space between taxes and total
+
+                    // Total Section
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 0.0), // Align with items
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Total', // Removed colon
+                            style: receiptBoldTextStyle,
+                          ),
+                          Text(
+                            _formatCents(widget.totalCents), // Access via widget.
+                            style: receiptBoldTextStyle,
+                          ),
+                        ],
+                      ),
                     ),
                   ],
-                ),
-              ),
+                );
+              }(), // Immediately invoke the function
             ],
           ),
         ),

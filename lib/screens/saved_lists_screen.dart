@@ -30,19 +30,6 @@ enum SavedListsMenuAction { scanLabel, deleteAll }
 class SavedListsScreen extends ConsumerWidget {
   const SavedListsScreen({super.key});
 
-  // Helper to format cents to currency string
-  String _formatCents(int cents) {
-    final currencyFormat = NumberFormat.currency(locale: 'en_US', symbol: '\$');
-    return currencyFormat.format(cents / 100.0);
-  }
-
-  // Helper to format Timestamp to a readable date/time string
-  String _formatTimestamp(Timestamp? timestamp) {
-    if (timestamp == null) return 'Unknown date';
-    // Example format: "Apr 2, 2025, 9:15 PM"
-    return DateFormat('MMM d, yyyy, h:mm a').format(timestamp.toDate());
-  }
-
   // Method to handle menu item selection
   void _handleMenuSelection(
     BuildContext context,
@@ -121,6 +108,10 @@ class SavedListsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final savedListsAsyncValue = ref.watch(savedListsStreamProvider);
 
+    // Instantiate formatters once here
+    final currencyFormat = NumberFormat.currency(locale: 'en_US', symbol: '\$');
+    final dateFormat = DateFormat('MMM d, yyyy, h:mm a');
+
     return Scaffold(
       appBar: AppBar(
         // Use logo image instead of text title
@@ -132,7 +123,15 @@ class SavedListsScreen extends ConsumerWidget {
         // Keep AppBar background white (from theme), remove elevation if needed explicitly
         elevation: 0,
         centerTitle: false, // Ensure left alignment
-        actions: [], // Removed PopupMenuButton
+        actions: [
+          // Add Delete All Lists Button
+          IconButton(
+            icon: const Icon(Icons.delete_forever_outlined),
+            tooltip: 'Delete All Lists',
+            color: Colors.red, // Make the icon red
+            onPressed: () => _deleteAllLists(context, ref), // Call the existing delete all method
+          ),
+        ],
       ),
       body: savedListsAsyncValue.when(
         data: (querySnapshot) {
@@ -213,10 +212,12 @@ class SavedListsScreen extends ConsumerWidget {
                 child: ListTile(
                   title: Text(title), // Display the title
                   subtitle: Text(
-                    '$itemCount items - ${_formatTimestamp(timestamp)}',
+                    // Use dateFormat directly
+                    '$itemCount items - ${(timestamp == null ? 'Unknown date' : dateFormat.format(timestamp.toDate()))}',
                   ), // Combine count and date
                   trailing: Text(
-                    _formatCents(totalCents),
+                    // Use currencyFormat directly
+                    currencyFormat.format(totalCents / 100.0),
                     style: const TextStyle(
                       fontWeight: FontWeight.normal,
                       fontSize: 16, // Increase font size

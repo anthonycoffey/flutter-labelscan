@@ -1,5 +1,7 @@
+import 'dart:async'; // For Completer if needed for compute error handling
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart'; // Import for compute
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/scanned_item.dart'; // Import the ScannedItem model
@@ -16,7 +18,9 @@ final firestoreServiceProvider = Provider<FirestoreService>((ref) {
     // For now, let's throw an error, assuming the UI prevents access when logged out.
     throw Exception('User not logged in. Cannot access FirestoreService.');
   }
-  return FirestoreService(user.uid);
+  // Pass the Firestore instance to avoid re-initializing in compute if possible,
+  // though compute often requires top-level initialization.
+  return FirestoreService(user.uid, FirebaseFirestore.instance);
 });
 
 // Provider for FirebaseAuth instance (if not already defined elsewhere)
@@ -25,11 +29,40 @@ final firestoreServiceProvider = Provider<FirestoreService>((ref) {
 final firebaseAuthProvider = Provider<FirebaseAuth>((ref) => FirebaseAuth.instance);
 
 
+// Top-level function for background isolate execution
+// Note: Firebase needs to be initialized for this isolate.
+// This usually happens if Firebase.initializeApp() is called in main().
+Future<void> _saveListBackground(Map<String, dynamic> data) async {
+  final String userId = data['userId'];
+  final String title = data['title'];
+  final List<Map<String, dynamic>> itemsJson = data['itemsJson'];
+  final int totalCents = data['totalCents'];
+  final int subtotalCents = data['subtotalCents'];
+
+  // Re-get Firestore instance within the isolate if needed, or ensure initialized
+  final FirebaseFirestore db = FirebaseFirestore.instance;
+  final CollectionReference listsCollection =
+      db.collection('users').doc(userId).collection('lists');
+
+  final listData = {
+    'title': title,
+    'items': itemsJson, // Use pre-serialized items
+    'total_cents': totalCents,
+    'subtotal_cents': subtotalCents,
+    'timestamp': FieldValue.serverTimestamp(),
+    'userId': userId,
+  };
+
+  // The actual Firestore operation
+  await listsCollection.add(listData);
+}
+
+
 class FirestoreService {
   final String userId;
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseFirestore _db; // Use injected instance
 
-  FirestoreService(this.userId);
+  FirestoreService(this.userId, this._db); // Inject Firestore instance
 
   // Collection reference for the user's lists
   CollectionReference get _listsCollection =>
@@ -40,7 +73,7 @@ class FirestoreService {
       required String title, // Add title parameter
       required List<ScannedItem> items,
       required int totalCents,
-      required int subtotalCents, // Add subtotal parameter
+      required int subtotalCents,
   }) async {
     if (userId.isEmpty) {
       throw Exception("User ID is required to save list.");
@@ -49,21 +82,29 @@ class FirestoreService {
       throw Exception("Cannot save an empty list.");
     }
 
-    // Use the correct field names consistent with ListProvider and SavedListsScreen
-    final listData = {
-      'title': title, // Add the title field
-      'items': items.map((item) => item.toJson()).toList(), // Convert items to JSON
-      'total_cents': totalCents, // Use 'total_cents'
-      'subtotal_cents': subtotalCents, // Add subtotal_cents field
-      'timestamp': FieldValue.serverTimestamp(), // Use 'timestamp' and server value
-      'userId': userId, // Optional: store userId
+    // --- Perform serialization on the main thread (usually fast) ---
+    final List<Map<String, dynamic>> itemsJson =
+        items.map((item) => item.toJson()).toList();
+
+    // --- Prepare data for the background isolate ---
+    final Map<String, dynamic> computeData = {
+      'userId': userId,
+      'title': title,
+      'itemsJson': itemsJson, // Pass serialized data
+      'totalCents': totalCents,
+      'subtotalCents': subtotalCents,
     };
 
     try {
-      await _listsCollection.add(listData); // Add as a new document with auto-generated ID
+      // --- Execute Firestore operation in background isolate ---
+      // compute() takes a top-level function and its argument.
+      // It returns a Future that completes when the background task is done.
+      await compute(_saveListBackground, computeData);
+
     } catch (e) {
       // Log error or handle it appropriately
-      print("Error saving list to Firestore: $e");
+      // Errors from the compute function might need specific handling
+      print("Error saving list via compute: $e");
       throw Exception("Failed to save list. Please try again.");
     }
   }

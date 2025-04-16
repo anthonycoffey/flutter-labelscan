@@ -21,6 +21,7 @@ class HomeState {
   final Object? error; // To hold general processing errors
   final String? pendingItemDescription; // For confirmation dialog
   final int? pendingItemPriceCents; // For confirmation dialog
+  final int? pendingItemQuantity; // For confirmation dialog
   final bool isSaving; // Flag for save operation
   final Object? saveError; // To hold potential save errors
 
@@ -32,13 +33,14 @@ class HomeState {
     this.error,
     this.pendingItemDescription,
     this.pendingItemPriceCents,
+    this.pendingItemQuantity = 1, // Default quantity
     this.isSaving = false, // Default to not saving
     this.saveError,
   });
 
   // Calculated properties
   int get subtotalCents =>
-      scannedItems.fold(0, (sum, item) => sum + item.priceInCents);
+      scannedItems.fold(0, (sum, item) => sum + (item.priceInCents * item.quantity));
   int get taxCents => (subtotalCents * taxRate).round();
   int get totalCents => subtotalCents + taxCents;
 
@@ -58,6 +60,7 @@ class HomeState {
     bool clearError = false, // Flag to explicitly clear general error
     String? pendingItemDescription,
     int? pendingItemPriceCents,
+    int? pendingItemQuantity,
     bool clearPendingItem = false, // Flag to explicitly clear pending item
     bool? isSaving,
     Object? saveError,
@@ -69,12 +72,18 @@ class HomeState {
       processingMessage: processingMessage ?? this.processingMessage,
       taxRate: taxRate ?? this.taxRate,
       error: clearError ? null : error ?? this.error,
-      pendingItemDescription: clearPendingItem
-          ? null
-          : pendingItemDescription ?? this.pendingItemDescription,
-      pendingItemPriceCents: clearPendingItem
-          ? null
-          : pendingItemPriceCents ?? this.pendingItemPriceCents,
+      pendingItemDescription:
+          clearPendingItem
+              ? null
+              : pendingItemDescription ?? this.pendingItemDescription,
+      pendingItemPriceCents:
+          clearPendingItem
+              ? null
+              : pendingItemPriceCents ?? this.pendingItemPriceCents,
+      pendingItemQuantity:
+          clearPendingItem
+              ? 1
+              : pendingItemQuantity ?? this.pendingItemQuantity,
       isSaving: isSaving ?? this.isSaving,
       saveError: clearSaveError ? null : saveError ?? this.saveError,
     );
@@ -207,7 +216,11 @@ class HomeController extends StateNotifier<HomeState> {
   void confirmPendingItem() {
     if (state.pendingItemDescription != null &&
         state.pendingItemPriceCents != null) {
-      _addItem(state.pendingItemDescription!, state.pendingItemPriceCents!);
+      _addItem(
+        state.pendingItemDescription!,
+        state.pendingItemPriceCents!,
+        state.pendingItemQuantity ?? 1
+      );
       // Clear pending item after adding
       state = state.copyWith(clearPendingItem: true);
     }
@@ -220,10 +233,11 @@ class HomeController extends StateNotifier<HomeState> {
   }
 
   // Internal method to add item to the list
-  void _addItem(String description, int priceInCents) {
+  void _addItem(String description, int priceInCents, int quantity) {
     final newItem = ScannedItem(
       description: description.toUpperCase(), // Force uppercase
       priceInCents: priceInCents,
+      quantity: quantity,
     );
     // Create a new list with the added item
     final updatedItems = List<ScannedItem>.from(state.scannedItems)
@@ -239,11 +253,12 @@ class HomeController extends StateNotifier<HomeState> {
     // Optionally: Show confirmation SnackBar from UI layer
   }
 
-  void editItem(int index, String newDescription, int newPriceInCents) {
+  void editItem(int index, String newDescription, int newPriceInCents, [int newQuantity = 1]) {
     if (index < 0 || index >= state.scannedItems.length) return;
     final updatedItem = ScannedItem(
       description: newDescription.toUpperCase(), // Force uppercase
       priceInCents: newPriceInCents,
+      quantity: newQuantity,
     );
     final updatedItems = List<ScannedItem>.from(state.scannedItems);
     updatedItems[index] = updatedItem;
@@ -261,7 +276,7 @@ class HomeController extends StateNotifier<HomeState> {
     }
   }
 
-   // Helper to clear save error state
+  // Helper to clear save error state
   void _clearSaveError() {
     if (state.saveError != null) {
       state = state.copyWith(clearSaveError: true);
@@ -295,7 +310,6 @@ class HomeController extends StateNotifier<HomeState> {
       state = state.copyWith(isSaving: false);
       // Optionally clear the list after saving
       // clearAllItems();
-
     } catch (e) {
       print("Error saving list in HomeController: $e");
       // Update state with error

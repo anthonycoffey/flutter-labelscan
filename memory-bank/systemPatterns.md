@@ -29,7 +29,7 @@ graph TD
 
 ## 2. Key Technical Decisions & Patterns
 
-*   **State Management:** `setState` is used within `StatefulWidget`s for managing local screen state. Simple, built-in approach suitable for less complex state needs.
+*   **State Management:** `flutter_riverpod` and `provider` packages are included. Riverpod is likely the primary solution, potentially with Provider used alongside or as legacy.
 *   **Navigation:** Flutter's built-in imperative `Navigator` (`Navigator.push`, `Navigator.pop`) is used for screen transitions.
 *   **Data Handling:**
     *   **Authentication:** Firebase Auth with Google Sign-In.
