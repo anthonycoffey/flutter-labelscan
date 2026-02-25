@@ -9,6 +9,8 @@
 
 Flutter LabelScan is a mobile application that helps shoppers keep track of their shopping cart costs in real-time. Using your phone's camera, simply scan price labels while shopping, and the app will maintain a running total of your expenses, including subtotal, taxes, and final cost.
 
+Demo Video: https://www.youtube.com/shorts/p4HSuCUjOes
+
 ## ✨ Features
 
 - **Real-time Price Scanning**: Use your camera to scan price labels on products
